@@ -2,8 +2,9 @@
 // Focus: minimal wrapper around fetch that attaches Authorization from authStorage
 
 import { authStorage } from './authApi';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-const BASE_URL = '/api';
+const BASE_URL = API_BASE_URL;
 
 const request = async (endpoint, { method = 'GET', body, headers = {} } = {}) => {
   const token = authStorage.getToken();

@@ -2,9 +2,10 @@
 // Endpoints grouped under /api/products
 
 import { authStorage } from './authApi';
+import { API_BASE_URL } from '../utils/apiConfig';
 // Cloudinary not used for product request create per latest guide
 
-const BASE_URL = '/api/products';
+const BASE_URL = `${API_BASE_URL}/products`;
 
 // Local apiRequest (FormData-safe, attaches Authorization)
 const apiRequest = async (endpoint, options = {}) => {

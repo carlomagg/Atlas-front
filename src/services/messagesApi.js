@@ -2,8 +2,9 @@
 // Handles inbox, sent, send, reply, mark read/unread, and notification counts
 
 import { authStorage } from './authApi';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-const BASE_URL = '/api/messages';
+const BASE_URL = `${API_BASE_URL}/messages`;
 
 // Helper to read a cookie value by name
 const getCookie = (name) => {

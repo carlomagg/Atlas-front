@@ -1,7 +1,8 @@
 // Company Information API Service
 import { authStorage } from './authApi';
 
-const BASE_URL = '/api';
+import { API_BASE_URL } from '../utils/apiConfig';
+const BASE_URL = API_BASE_URL;
 
 // Helper function to make API requests
 const apiRequest = async (endpoint, options = {}) => {

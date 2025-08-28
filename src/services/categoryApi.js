@@ -1,7 +1,8 @@
 // Category API Service for Mega Menu
 // BASE for products endpoints (adjust if backend is mounted elsewhere)
-const BASE = '/api/products/';
+const BASE = `${API_BASE_URL}/products/`;
 
+import { API_BASE_URL } from '../utils/apiConfig';
 import { authStorage } from './authApi';
 
 async function apiGet(path, { signal } = {}) {

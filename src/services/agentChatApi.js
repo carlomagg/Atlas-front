@@ -1,6 +1,7 @@
 // Agent Chat API Service
 // Separate from direct messages. Mirrors messagesApi.js patterns, avoids touching existing flows.
 
+import { API_BASE_URL } from '../utils/apiConfig';
 import { authStorage } from './authApi';
 
 const BASE_URL = '/api/messages';

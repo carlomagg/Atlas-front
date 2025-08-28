@@ -2,11 +2,12 @@
 // Uses JSON payloads with base64 for create-with-media as per product_endpoints.txt
 
 import { authStorage } from './authApi';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-const BASE_URL = '/api/products';
+const BASE_URL = `${API_BASE_URL}/products`;
 // Some deployments mount the products router under '/api/products/products/'.
 // Keep main BASE_URL for general endpoints and use a dedicated base for nested product routes (brochures, media when needed).
-const PRODUCTS_BASE_URL = '/api/products/products';
+const PRODUCTS_BASE_URL = `${API_BASE_URL}/products/products`;
 
 const apiRequest = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
