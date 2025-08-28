@@ -1,0 +1,14 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="200" fill="#F8F8F8"/>
+  <!-- Headphone Design -->
+  <circle cx="150" cy="100" r="50" fill="#333333"/>
+  <path d="M100 100C100 72.3858 122.386 50 150 50C177.614 50 200 72.3858 200 100" stroke="#333333" stroke-width="10"/>
+  <!-- Ear Cushions -->
+  <circle cx="150" cy="100" r="35" fill="#666666"/>
+  <circle cx="150" cy="100" r="25" fill="#999999"/>
+  <!-- Product Name -->
+  <text x="110" y="180" font-family="Arial" font-size="14" fill="#333333">Headset Pro Max</text>
+  <!-- Price Tag -->
+  <rect x="110" y="20" width="60" height="20" fill="#027DDB" rx="4"/>
+  <text x="120" y="35" font-family="Arial" font-size="14" fill="#FFFFFF">$199.99</text>
+</svg>
