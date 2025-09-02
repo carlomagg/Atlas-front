@@ -16,12 +16,9 @@ It is built with **React + TailwindCSS + Vite**.
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/atlas-wd/atlas-wd-backend.git
-cd atlas-wd-backend
+git clone https://github.com/carlomagg/Atlas-front.git
+cd Atlas-front
 
-
-Switch to frontend branch
-git checkout Atlasfront
 
 Install dependencies
 npm install
