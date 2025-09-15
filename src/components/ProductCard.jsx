@@ -9,13 +9,13 @@ const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller 
   );
   return (
     <Wrapper>
-      <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-200 group cursor-pointer">
+      <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-200 group cursor-pointer h-full flex flex-col">
       <div className="relative">
-        <div className="flex items-center justify-center h-48 bg-gray-50">
+        <div className="aspect-square bg-gray-50 overflow-hidden">
           {imageUrl ? (
-            <img src={imageUrl} alt={title} className="h-48 w-full object-cover" />
+            <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
           ) : (
-            <div className="h-48 w-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
               No photos
             </div>
           )}
@@ -59,9 +59,9 @@ const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller 
         </div>
       </div>
 
-      <div className="p-4 text-center">
-        <h3 className="font-medium text-gray-800 mb-2">{title}</h3>
-        <div className="flex items-center justify-center mb-2">
+      <div className="p-4 text-center flex-1 flex flex-col justify-between">
+        <h3 className="font-medium text-gray-800 mb-2 line-clamp-2">{title}</h3>
+        <div className="flex items-center justify-center">
           <div className="flex text-yellow-400">
             {[...Array(5)].map((_, i) => (
               <svg

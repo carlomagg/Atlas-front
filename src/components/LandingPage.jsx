@@ -1845,7 +1845,7 @@ const LandingPage = () => {
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Trending Products</h2>
             <p className="text-gray-600">Find our online product that best for everyone</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
             {lpLoading && (
               Array(4).fill().map((_, i) => (
                 <div key={i} className="h-64 rounded-lg border animate-pulse bg-gray-50" />

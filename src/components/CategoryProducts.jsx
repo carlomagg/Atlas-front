@@ -122,7 +122,7 @@ export default function CategoryProducts() {
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{categoryName || 'Products in Category'}</h2>
         {loadingName && <p className="text-gray-500 text-sm">Loading category…</p>}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
         {loading && Array(8).fill().map((_, i) => (
           <div key={i} className="h-64 rounded-lg border animate-pulse bg-gray-50" />
         ))}
