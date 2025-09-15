@@ -3,7 +3,7 @@ import SuccessAlert from './common/SuccessAlert';
 import { getProductThumb } from '../utils/media';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ProductCard from './ProductCard';
-import { listGeneral, searchProducts } from '../services/productApi';
+import { listGeneral, searchProducts, listCategories } from '../services/productApi';
 import RecommendationCard from './RecommendationCard';
 import { AuthFlow } from './auth';
 import { authStorage, getCurrentUser, logout } from '../services/authApi';
@@ -64,6 +64,12 @@ const LandingPage = () => {
   // Additional Product Request fields
   const [prCity, setPrCity] = useState('');
   const [prCategoryText, setPrCategoryText] = useState(''); // free-text category
+  const [prCategoryId, setPrCategoryId] = useState(''); // selected category ID
+  const [prCategoryName, setPrCategoryName] = useState(''); // selected category name for display
+  // Categories state for product request
+  const [prCategories, setPrCategories] = useState([]);
+  const [prCatLoading, setPrCatLoading] = useState(false);
+  const [prCatError, setPrCatError] = useState('');
   const [prBudget, setPrBudget] = useState('');
   const [prCurrency, setPrCurrency] = useState('USD');
   const [prIsBuyer, setPrIsBuyer] = useState(false);
@@ -88,6 +94,8 @@ const LandingPage = () => {
     setPrCountry('');
     setPrCity('');
     setPrCategoryText('');
+    setPrCategoryId('');
+    setPrCategoryName('');
     setPrBudget('');
     setPrCurrency('USD');
     setPrIsBuyer(false);
@@ -115,6 +123,29 @@ const LandingPage = () => {
     }
   }, [prSuccess]);
 
+  // Load categories for product request dropdown
+  useEffect(() => {
+    const loadCategories = async () => {
+      setPrCatLoading(true);
+      setPrCatError('');
+      try {
+        const res = await listCategories();
+        const items = Array.isArray(res?.results) ? res.results : (Array.isArray(res) ? res : []);
+        const mapped = items.map(it => ({ 
+          id: it.id ?? it.value ?? it.pk ?? it.slug ?? it.code, 
+          name: it.name ?? it.title ?? it.label ?? String(it.id ?? it.value ?? '') 
+        }));
+        setPrCategories(mapped.filter(c => c.id != null));
+      } catch (e) {
+        console.error('Load categories failed', e);
+        setPrCatError(e?.message || 'Failed to load categories');
+      } finally {
+        setPrCatLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
   const onSubmitProductRequest = async () => {
     if (!isLoggedIn) { navigate('/login'); return; }
     if (!prProductName.trim()) { setPrError('Please enter product name'); return; }
@@ -140,7 +171,8 @@ const LandingPage = () => {
         custom_unit: prUnitType === 'others' ? (prCustomUnit || '') : undefined,
         country: prCountry || undefined,
         city: prCity || undefined,
-        category_text: prCategoryText || undefined,
+        category_text: prCategoryText || prCategoryName || undefined,
+        category_id: prCategoryId || undefined,
         budget: prBudget !== '' ? Number(prBudget) : undefined,
         currency: prCurrency || undefined,
         is_buyer: prIsBuyer,
@@ -450,8 +482,8 @@ const LandingPage = () => {
         const data = await listGeneral({ limit: LIMIT, page: 1 });
         const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
         const mapped = arr.map(p => {
-          // Derive a numeric rating from common API fields; fallback to 0
-          const rawRating = p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
+          // Derive the highest rating from API fields; fallback to average rating, then 0
+          const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
           const rating = Number(rawRating) || 0;
           return {
             id: p.id,
@@ -484,7 +516,7 @@ const LandingPage = () => {
       const data = await listGeneral({ limit: LIMIT, page: nextPage });
       const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
       const mapped = arr.map(p => {
-        const rawRating = p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
+        const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
         const rating = Number(rawRating) || 0;
         return {
           id: p.id,
@@ -1039,9 +1071,8 @@ const LandingPage = () => {
                 )}
               </button>
               {/* Product Request */}
-              <button
-                onClick={() => navigate('/dashboard/message-guide?tab=product')}
-                className="relative p-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+              <div
+                className="relative p-1 text-gray-700"
                 aria-label="Product Requests"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1052,7 +1083,7 @@ const LandingPage = () => {
                     {Math.min(99, prTotalCount)}
                   </span>
                 )}
-              </button>
+              </div>
               {/* Video Channel */}
               <Link to="/video-channel" className="p-1 text-gray-700 hover:text-[#027DDB] transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1172,7 +1203,7 @@ const LandingPage = () => {
                 </span>
               )}
             </button>
-            <button onClick={() => navigate('/dashboard/message-guide?tab=product')} className="relative hidden md:flex items-center space-x-2 text-gray-700 hover:text-[#027DDB] transition-colors whitespace-nowrap">
+            <div className="relative hidden md:flex items-center space-x-2 text-gray-700 whitespace-nowrap">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
@@ -1182,7 +1213,7 @@ const LandingPage = () => {
                   {Math.min(99, prTotalCount)}
                 </span>
               )}
-            </button>
+            </div>
             <Link to="/video-channel" className="hidden md:flex items-center space-x-2 text-gray-700 hover:text-[#027DDB] transition-colors whitespace-nowrap">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1962,10 +1993,31 @@ const LandingPage = () => {
                   placeholder="What product do you need?"
                 />
               </div>
-              {/* Category (free text) */}
+              {/* Category (dropdown) */}
               <div>
                 <label className="block text-sm text-slate-700 mb-1">Category</label>
-                <input value={prCategoryText} onChange={(e) => setPrCategoryText(e.target.value)} type="text" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lighting > LED Panels" />
+                <select 
+                  value={prCategoryId} 
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setPrCategoryId(selectedId);
+                    // Find and store the category name for display
+                    if (selectedId) {
+                      const selectedCategory = prCategories.find(c => c.id.toString() === selectedId);
+                      setPrCategoryName(selectedCategory ? selectedCategory.name : '');
+                      setPrCategoryText(''); // Clear text input when dropdown is used
+                    } else {
+                      setPrCategoryName('');
+                    }
+                  }} 
+                  className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">{prCatLoading ? 'Loading categories...' : 'Select a category'}</option>
+                  {prCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {prCatError && <p className="text-xs text-red-600 mt-1">{prCatError}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

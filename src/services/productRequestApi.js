@@ -206,3 +206,11 @@ export const markAllProductRequestRepliesRead = async (requestId) =>
 // Get unread replies count for current user
 export const getUnreadProductRequestRepliesCount = async () =>
   apiRequest('/product-requests/unread_count/', { method: 'GET' });
+
+// Get available categories for filtering (categories that have product requests)
+export const getAvailableCategories = async () =>
+  apiRequest('/product-requests/available_categories/', { method: 'GET' });
+
+// Get all categories to find ID by name
+export const getAllCategories = async () =>
+  apiRequest('/categories/', { method: 'GET' });

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import SuccessAlert from '../common/SuccessAlert';
 import { listInbox, listSent, listFlagged, listReported, listNotReplied, getMessage, replyMessage, sendMessage, markRead, markUnread, markSpam, flagMessage, reportMessage, deleteMessage, getMessageStats } from '../../services/messagesApi';
-import { listContactRequests, replyContactRequest, listProductRequests, replyProductRequest, closeProductRequest, deleteContactRequest, deleteProductRequest, getProductRequestWithReplies } from '../../services/productRequestApi';
+import { listContactRequests, replyContactRequest, listProductRequests, replyProductRequest, closeProductRequest, deleteContactRequest, deleteProductRequest, getProductRequestWithReplies, getAvailableCategories, getAllCategories } from '../../services/productRequestApi';
 import { retrieveProduct } from '../../services/productApi';
 import { useAuth } from '../../context/AuthContext';
  
@@ -66,6 +66,10 @@ const MessageGuide = () => {
   const [loadingTitles, setLoadingTitles] = useState(false);
   // Force list remount when data refreshes to avoid stale UI
   const [refreshTick, setRefreshTick] = useState(0);
+  // Category filtering for product requests
+  const [availableCategories, setAvailableCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [allCategories, setAllCategories] = useState([]);
 
   const { user } = useAuth();
   const currentUserId = user?.id || user?.user_id || user?.pk || user?.atlas_id || user?.atlasId || null;
@@ -99,6 +103,175 @@ const MessageGuide = () => {
   // Reset recipient when switching selected item
   useEffect(() => { setRecipientId(''); }, [selected?.id]);
 
+  // Load available categories when switching to product tab
+  useEffect(() => {
+    if (active === 'product') {
+      const loadAvailableCategories = async () => {
+        try {
+          console.log('Attempting to load available categories...');
+          
+          // Load all categories first for lookup
+          try {
+            const allCategoriesData = await getAllCategories();
+            console.log('All categories loaded:', allCategoriesData);
+            setAllCategories(allCategoriesData?.results || allCategoriesData || []);
+          } catch (e) {
+            console.warn('Failed to load all categories:', e.message);
+          }
+          
+          const data = await getAvailableCategories();
+          console.log('Available categories API response:', data);
+          console.log('Categories array:', data?.categories);
+          console.log('Categories length:', data?.categories?.length);
+          
+          if (data?.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+            setAvailableCategories(data.categories);
+            console.log('Successfully loaded', data.categories.length, 'categories');
+          } else {
+            console.warn('No categories found in API response, trying fallback...');
+            // Fallback: Extract categories from existing product requests
+            await loadCategoriesFromRequests();
+          }
+        } catch (e) {
+          console.error('Failed to load available categories:', e);
+          console.error('Error details:', e.message, e.status);
+          console.warn('API failed, trying fallback method...');
+          // Fallback: Extract categories from existing product requests
+          await loadCategoriesFromRequests();
+        }
+      };
+      
+      const loadCategoriesFromRequests = async () => {
+        try {
+          console.log('Loading categories from existing requests...');
+          // Try different pagination approaches
+          let requests = [];
+          
+          // First try: no pagination params (get all)
+          try {
+            const requestsData = await listProductRequests({});
+            requests = requestsData?.results || requestsData || [];
+            console.log('Method 1 - Got', requests.length, 'requests (no pagination)');
+          } catch (e) {
+            console.log('Method 1 failed:', e.message);
+          }
+          
+          // Second try: explicit page 1 without limit
+          if (requests.length === 0) {
+            try {
+              const requestsData = await listProductRequests({ page: 1 });
+              requests = requestsData?.results || requestsData || [];
+              console.log('Method 2 - Got', requests.length, 'requests (page 1)');
+            } catch (e) {
+              console.log('Method 2 failed:', e.message);
+            }
+          }
+          
+          // Third try: large limit
+          if (requests.length === 0) {
+            try {
+              const requestsData = await listProductRequests({ page: 1, page_size: 1000 });
+              requests = requestsData?.results || requestsData || [];
+              console.log('Method 3 - Got', requests.length, 'requests (large limit)');
+            } catch (e) {
+              console.log('Method 3 failed:', e.message);
+            }
+          }
+          
+          console.log('Final requests array:', requests);
+          console.log('Sample request structure:', requests[0]);
+          
+          // Extract unique categories from requests
+          const categoryMap = new Map();
+          
+          // Process requests sequentially to handle async category resolution
+          for (let index = 0; index < requests.length; index++) {
+            const request = requests[index];
+            console.log(`Request ${index} full structure:`, request);
+            console.log(`Request ${index} category fields:`, {
+              category_text: request.category_text,
+              category: request.category,
+              product_name: request.product_name,
+              // Check all possible category field variations
+              category_id: request.category_id,
+              categoryId: request.categoryId,
+              category_name: request.category_name,
+              categoryName: request.categoryName
+            });
+            
+            // Try multiple ways to extract category data
+            let categoryId = null;
+            let categoryName = null;
+            
+            if (request.category?.id && request.category?.name) {
+              // Standard nested category object
+              categoryId = request.category.id;
+              categoryName = request.category.name;
+            } else if (request.category_text) {
+              // Category stored as text - look up numeric ID from all categories
+              console.log('Found text category:', request.category_text, '- looking up numeric ID');
+              const foundCategory = allCategories.find(cat => 
+                cat.name === request.category_text || 
+                cat.full_name === request.category_text ||
+                cat.name?.toLowerCase() === request.category_text?.toLowerCase()
+              );
+              
+              if (foundCategory?.id) {
+                categoryId = foundCategory.id;
+                categoryName = foundCategory.name || request.category_text;
+                console.log('Resolved category:', categoryName, 'to ID:', categoryId);
+              } else {
+                console.log('Could not resolve category:', request.category_text, 'in available categories');
+                console.log('Available categories:', allCategories.map(c => c.name));
+                return;
+              }
+            } else if (request.category_id && request.category_name) {
+              // Separate category ID and name fields
+              categoryId = request.category_id;
+              categoryName = request.category_name;
+            } else if (request.categoryId && request.categoryName) {
+              // CamelCase versions
+              categoryId = request.categoryId;
+              categoryName = request.categoryName;
+            }
+            
+            if (categoryId && categoryName && !categoryMap.has(categoryId)) {
+              categoryMap.set(categoryId, {
+                id: categoryId,
+                name: categoryName,
+                full_name: categoryName
+              });
+              console.log('Added category:', categoryName, 'with ID:', categoryId);
+            }
+          }
+          
+          const extractedCategories = Array.from(categoryMap.values());
+          console.log('Extracted categories:', extractedCategories);
+          setAvailableCategories(extractedCategories);
+          
+          // If still no categories found, log the issue
+          if (extractedCategories.length === 0) {
+            console.log('No valid categories found with both ID and name');
+            console.log('Requests found:', requests.length);
+            if (requests.length > 0) {
+              console.log('Sample request category data:', requests[0]?.category);
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback category loading also failed:', fallbackError);
+          setAvailableCategories([]);
+        }
+      };
+      
+      loadAvailableCategories();
+    }
+  }, [active]);
+
+  // Reset category filter when switching tabs
+  useEffect(() => {
+    setSelectedCategory('');
+  }, [active]);
+
   // Compose state
   const [cSubject, setCSubject] = useState('');
   const [cRecipientEmail, setCRecipientEmail] = useState('');
@@ -128,7 +301,11 @@ const MessageGuide = () => {
       else if (tab === 'reported') data = await listReported({ page: p });
       else if (tab === 'not_replied') data = await listNotReplied({ page: p });
       else if (tab === 'contact') data = await listContactRequests({ page: p });
-      else if (tab === 'product') data = await listProductRequests({ page: p });
+      else if (tab === 'product') {
+        const params = { page: p };
+        if (selectedCategory) params.category = selectedCategory;
+        data = await listProductRequests(params);
+      }
       else data = { results: [], count: 0 };
       let results = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
       // Ensure newest first for request tabs so new items are visible on page 1
@@ -247,6 +424,15 @@ const MessageGuide = () => {
 
   useEffect(() => { setPage(1); setSelected(null); }, [active]);
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [active, page]);
+  // Refetch when category filter changes for product requests
+  useEffect(() => {
+    if (active === 'product') {
+      setPage(1);
+      setSelected(null);
+      fetchData({ tab: 'product', page: 1 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
   useEffect(() => { fetchStats(); }, []);
 
   // Refresh when a new product request is created elsewhere (e.g., Landing/ProductDetails)
@@ -417,6 +603,41 @@ const MessageGuide = () => {
           );
         })}
       </div>
+
+      {/* Category Filter for Product Requests */}
+      {active === 'product' && (
+        <div className="mb-4">
+          <div className="flex items-center gap-3">
+            <label htmlFor="category-filter" className="text-sm font-medium text-gray-700">
+              Filter by Category:
+            </label>
+            <select
+              id="category-filter"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Categories</option>
+              {availableCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.full_name || category.name}
+                </option>
+              ))}
+            </select>
+            {availableCategories.length > 0 && (
+              <span className="text-xs text-gray-500">({availableCategories.length} categories available)</span>
+            )}
+            {selectedCategory && (
+              <button
+                onClick={() => setSelectedCategory('')}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-1 border rounded-lg bg-white">

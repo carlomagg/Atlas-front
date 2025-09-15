@@ -53,7 +53,7 @@ export default function CategoryProducts() {
 
   const mapProducts = useCallback((arr) => {
     return arr.map(p => {
-      const rawRating = p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
+      const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
       const rating = Number(rawRating) || 0;
       return {
         id: p.id,
