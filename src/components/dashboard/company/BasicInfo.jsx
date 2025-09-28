@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getCountryName, getStateDisplay } from '../../../utils/locationData';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getUserProfile } from '../../../services/authApi';
@@ -56,8 +57,8 @@ const BasicInfo = () => {
     { label: 'Title', value: data?.title },
     { label: 'Full Name', value: data?.full_name || data?.fullName },
     { label: 'Company Name', value: data?.company_name || data?.companyName },
-    { label: 'Country', value: data?.country },
-    { label: 'State', value: data?.state },
+    { label: 'Country', value: getCountryName(data?.country) },
+    { label: 'State', value: getStateDisplay(data?.country, data?.state) },
     { label: 'Phone Number', value: data?.phone_number || data?.phoneNumber },
     { label: 'Business Type', value: data?.business_type || data?.businessType },
     { label: 'Is Active', value: normalizeBool(data?.is_active ?? data?.isActive) ? 'Yes' : 'No' },

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { getCountryName, getStateDisplay } from '../../../utils/locationData';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getUserProfile } from '../../../services/authApi';
@@ -63,8 +64,9 @@ const CompanyInfo = () => {
     { label: 'Company Name', value: data?.company_name || data?.companyName },
     { label: 'Business Type', value: data?.business_type || data?.businessType },
     { label: 'Website', value: data?.website },
-    { label: 'Country', value: data?.country || data?.address_country },
+    { label: 'Country', value: getCountryName(data?.country || data?.address_country) },
     { label: 'Phone Number', value: data?.phone_number || data?.phoneNumber },
+    { label: 'State', value: getStateDisplay(data?.country || data?.address_country, data?.address_state || data?.state) },
     { label: 'Verification Status', value: data?.business_verification_status || data?.businessVerificationStatus || 'Pending' },
   ];
 
@@ -107,6 +109,25 @@ const CompanyInfo = () => {
           <div className="mt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">About Us</h2>
             <p className="text-gray-800 whitespace-pre-line">{data.about_us}</p>
+            
+            {/* About Us Media */}
+            {data?.about_us_media && Array.isArray(data.about_us_media) && data.about_us_media.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-md font-medium text-gray-700 mb-2">About Us Media</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {data.about_us_media.map((mediaItem, idx) => (
+                    <div key={idx} className="bg-gray-50 rounded border p-2">
+                      <img
+                        src={resolveMediaUrl(mediaItem.url || mediaItem.secure_url || mediaItem)}
+                        alt={`About us media ${idx + 1}`}
+                        className="w-full h-20 object-cover rounded"
+                        onError={e => { e.target.onerror = null; e.target.src = '/default-image.png'; }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {data?.why_choose_us && (

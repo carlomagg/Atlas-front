@@ -6,13 +6,13 @@ import {
   getAgentReferralStats,
   getAgentReferralEarnings,
   listReferredUsers,
-  getReferralPaymentStatus,
-  purchaseOrExtendReferralLink,
+  getReferralInfo,
   agentRegisterUser,
   BUSINESS_TYPE_OPTIONS,
   COUNTRY_OPTIONS,
 } from '../../../services/authApi';
 import { getErrorMessage } from '../../../utils/errorUtils';
+import NigeriaStatesDropdown from '../../common/NigeriaStatesDropdown';
 
 const SectionCard = ({ title, children, rightEl }) => (
   <section className="bg-white rounded-lg shadow-sm p-4 md:p-6">
@@ -362,68 +362,96 @@ const ReferredUsersSection = () => {
   );
 };
 
-const ReferralPaymentSection = () => {
-  const { data, loading, error, refetch } = useFetch(() => getReferralPaymentStatus(), [], { immediate: true });
-  const [duration, setDuration] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [submitMsg, setSubmitMsg] = useState('');
+const ReferralInfoSection = () => {
+  const { data, loading, error, refetch } = useFetch(() => getReferralInfo(), [], { immediate: true });
 
-  const onPurchase = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setSubmitError('');
-    setSubmitMsg('');
-    try {
-      const res = await purchaseOrExtendReferralLink({ payment_duration: Number(duration) });
-      setSubmitMsg(res?.message || 'Updated successfully');
-      await refetch();
-    } catch (err) {
-      setSubmitError(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
+  const copyReferralLink = () => {
+    if (data?.referral_code) {
+      const link = `${window.location.origin}/auth/register?ref=${data.referral_code}`;
+      navigator.clipboard.writeText(link);
+      alert('Referral link copied to clipboard!');
     }
   };
 
   return (
-    <SectionCard title="Referral Link Status">
+    <SectionCard title="Your FREE Referral Code 🎉">
       {error && <div className="mb-3 p-3 bg-red-50 text-red-700 rounded">{error}</div>}
       {loading ? (
         <div className="py-6 text-center text-gray-500">Loading...</div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded border bg-gray-50">
-              <div className="text-sm text-gray-600">Active</div>
-              <div className="text-xl font-semibold">{data?.link_status?.active ? 'Yes' : 'No'}</div>
-            </div>
-            <div className="p-4 rounded border bg-gray-50">
-              <div className="text-sm text-gray-600">Payment Status</div>
-              <div className="text-xl font-semibold">{data?.link_status?.payment_status || '-'}</div>
-            </div>
-            <div className="p-4 rounded border bg-gray-50">
-              <div className="text-sm text-gray-600">Expires At</div>
-              <div className="text-xl font-semibold">{data?.link_status?.expires_at || '-'}</div>
-            </div>
-            <div className="p-4 rounded border bg-gray-50">
-              <div className="text-sm text-gray-600">Monthly Price</div>
-              <div className="text-xl font-semibold">{data?.pricing?.monthly_price ? `${data.pricing.monthly_price} ${data?.pricing?.currency || ''}` : '-'}</div>
+          {/* Free Referral Code Display */}
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-green-600 font-medium">Your Referral Code (FREE)</div>
+                <div className="text-2xl font-bold text-green-800 font-mono mt-1">
+                  {data?.referral_code || 'Loading...'}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-green-600">Total Earnings</div>
+                <div className="text-xl font-bold text-green-800">
+                  ₦{data?.total_earnings || 0}
+                </div>
+              </div>
             </div>
           </div>
 
-          <form onSubmit={onPurchase} className="flex items-end gap-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (months)</label>
-              <input type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md" />
+          {/* Earnings Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded border bg-blue-50">
+              <div className="text-sm text-blue-600">Commission Rate</div>
+              <div className="text-xl font-semibold text-blue-800">{data?.earnings_info?.percentage || data?.earning_percentage + '%' || '10%'}</div>
             </div>
-            <button type="submit" disabled={submitting} className="px-4 py-2 bg-[#027DDB] text-white rounded-md disabled:opacity-50">
-              {submitting ? 'Processing...' : data?.link_status?.active ? 'Extend' : 'Purchase'}
-            </button>
-            <button type="button" onClick={() => refetch()} className="px-3 py-2 border rounded-md">Refresh</button>
-          </form>
+            <div className="p-4 rounded border bg-blue-50">
+              <div className="text-sm text-blue-600">Minimum Purchase</div>
+              <div className="text-xl font-semibold text-blue-800">{data?.earnings_info?.minimum_amount || '₦' + (data?.minimum_subscription_amount || '1,000')}</div>
+            </div>
+            <div className="p-4 rounded border bg-blue-50">
+              <div className="text-sm text-blue-600">System Status</div>
+              <div className="text-xl font-semibold text-blue-800">
+                {data?.referral_system_active ? '✅ Active' : '❌ Inactive'}
+              </div>
+            </div>
+            <div className="p-4 rounded border bg-blue-50">
+              <div className="text-sm text-blue-600">Earning Type</div>
+              <div className="text-xl font-semibold text-blue-800">Subscription Only</div>
+            </div>
+          </div>
 
-          {submitError && <div className="p-3 bg-red-50 text-red-700 rounded">{submitError}</div>}
-          {submitMsg && <div className="p-3 bg-green-50 text-green-700 rounded">{submitMsg}</div>}
+          {/* Share Referral Link */}
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="text-sm font-medium text-gray-700 mb-2">Share Your Referral Link</div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="text" 
+                value={data?.referral_code ? `${window.location.origin}/auth/register?ref=${data.referral_code}` : ''}
+                readOnly
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+              />
+              <button 
+                onClick={copyReferralLink}
+                className="px-4 py-2 bg-[#027DDB] text-white rounded-md text-sm hover:bg-blue-700"
+              >
+                Copy Link
+              </button>
+              <button 
+                type="button" 
+                onClick={() => refetch()} 
+                className="px-3 py-2 border rounded-md text-sm"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* New System Information */}
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="text-sm text-yellow-800">
+              <strong>🆕 New System:</strong> Referral codes are now completely FREE! You earn commissions only when referred users purchase monthly subscriptions, not on signup.
+            </div>
+          </div>
         </div>
       )}
     </SectionCard>
@@ -441,6 +469,7 @@ const AgentRegisterUserSection = () => {
     phone_number: '',
     company_name: '',
     country: 'NG',
+    state: '',
     business_type: 'RETAILER',
     referral_code: '',
     is_agent: false,
@@ -449,6 +478,7 @@ const AgentRegisterUserSection = () => {
       last_name: '',
       phone_number: '',
       address: '',
+      state: '',
       bank_name: '',
       account_number: '',
       id_type: '',
@@ -488,6 +518,8 @@ const AgentRegisterUserSection = () => {
     setFieldErrors({});
     try {
       const payload = { ...form };
+      console.log('🔍 AgentManagement - Form data before processing:', form);
+      console.log('🔍 AgentManagement - Payload being prepared:', payload);
       // If not intending agent, drop empty agent_application block
       if (!intendsAgent) delete payload.agent_application;
       // If there is an ID document file, attach Cloudinary override so service can upload & send JSON URL
@@ -497,6 +529,7 @@ const AgentRegisterUserSection = () => {
         const upload_preset = (import.meta && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || 'carlomagg';
         payload.cloudinary = { cloud_name, upload_preset };
       }
+      console.log('🔍 AgentManagement - Final payload being sent to API:', payload);
       const res = await agentRegisterUser(payload);
       setSuccess(res?.message || 'User registered');
     } catch (err) {
@@ -607,8 +640,8 @@ const AgentRegisterUserSection = () => {
           <input name="full_name" value={form.full_name} onChange={onChange} className="w-full px-3 py-2 border rounded" required />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-          <input name="company_name" value={form.company_name} onChange={onChange} className="w-full px-3 py-2 border rounded" />
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name <span className="text-red-500">*</span></label>
+          <input name="company_name" value={form.company_name} onChange={onChange} className="w-full px-3 py-2 border rounded" required />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
@@ -621,8 +654,19 @@ const AgentRegisterUserSection = () => {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+          <NigeriaStatesDropdown
+            name="state"
+            value={form.state}
+            onChange={onChange}
+            placeholder="Select your state (optional)"
+            className="border rounded"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Business Type <span className="text-red-500">*</span></label>
           <select name="business_type" value={form.business_type} onChange={onChange} className="w-full px-3 py-2 border rounded" required>
+            <option value="">Select Business Type</option>
             {BUSINESS_TYPE_OPTIONS.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
@@ -654,6 +698,17 @@ const AgentRegisterUserSection = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                   <input name="address" value={form.agent_application.address} onChange={onAgentAppChange} className={`w-full px-3 py-2 border rounded ${fieldErrors['agent_application.address'] ? 'border-red-400' : ''}`} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <NigeriaStatesDropdown
+                    name="state"
+                    value={form.agent_application.state}
+                    onChange={onAgentAppChange}
+                    required
+                    placeholder="Select state"
+                    className={`border rounded ${fieldErrors['agent_application.state'] ? 'border-red-400' : ''}`}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
@@ -779,7 +834,7 @@ const AgentManagement = () => {
           {tab === 'stats' && <ReferralStatsSection />}
           {tab === 'earnings' && <ReferralEarningsSection />}
           {tab === 'referred' && <ReferredUsersSection />}
-          {tab === 'payment' && <ReferralPaymentSection />}
+          {tab === 'payment' && <ReferralInfoSection />}
           {tab === 'register' && <AgentRegisterUserSection />}
           {tab === 'chat' && <AgentChat />}
         </section>
@@ -792,7 +847,7 @@ const AgentManagement = () => {
         {tab === 'stats' && <ReferralStatsSection />}
         {tab === 'earnings' && <ReferralEarningsSection />}
         {tab === 'referred' && <ReferredUsersSection />}
-        {tab === 'payment' && <ReferralPaymentSection />}
+        {tab === 'payment' && <ReferralInfoSection />}
         {tab === 'register' && <AgentRegisterUserSection />}
         {tab === 'chat' && <AgentChat />}
       </div>

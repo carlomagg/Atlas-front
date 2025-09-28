@@ -1,20 +1,159 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import SuccessAlert from './common/SuccessAlert';
 import { getProductThumb } from '../utils/media';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ProductCard from './ProductCard';
-import { listGeneral, searchProducts, listCategories } from '../services/productApi';
+import { listGeneral, searchProducts, searchProductsEnhanced, searchProductsResults, searchByAtlasId, searchProductsWithCategory, searchByCategory, searchByCategoryName, listCategories, fetchTopRankingProducts, fetchProductsByBusinessType } from '../services/productApi';
 import RecommendationCard from './RecommendationCard';
 import { AuthFlow } from './auth';
 import { authStorage, getCurrentUser, logout } from '../services/authApi';
 import { useAuth } from '../context/AuthContext';
 import Logo from './common/Logo';
+import GlobalFooter from './common/GlobalFooter';
 import { getRootCategories, getCategoryDetail } from '../services/categoryApi';
 import ContactModal from './common/ContactModal';
 import { getNotificationCounts } from '../services/messagesApi';
 import { createProductRequest, listProductRequests } from '../services/productRequestApi';
 
+// Small Top Ranking Products component for landing page sidebar
+function LandingSidebarTopRanking() {
+  const [topProducts, setTopProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const productsPerPage = 5;
+
+  const loadTopProducts = async (page = 1, reset = false) => {
+    setLoading(true);
+    try {
+      const response = await fetchTopRankingProducts(1, 50); // Get more products to filter from
+      const products = Array.isArray(response) ? response : (response?.results || []);
+      
+      // Filter for boosted products first (good for advertising)
+      let boostedProducts = products.filter(product => 
+        product.is_boosted || 
+        product.daily_booster_badge
+      );
+      
+      // If no boosted products, fallback to platinum or gold subscribers
+      if (boostedProducts.length === 0) {
+        boostedProducts = products.filter(product => {
+          const subscription = (product.subscription_badge || product.package_name || '').toLowerCase();
+          return subscription.includes('platinum') || subscription.includes('gold');
+        });
+      }
+      
+      // Remove the limit - show all boosted products with pagination
+      setTotalProducts(boostedProducts.length);
+      
+      // Calculate pagination
+      const startIndex = (page - 1) * productsPerPage;
+      const endIndex = startIndex + productsPerPage;
+      const paginatedProducts = boostedProducts.slice(startIndex, endIndex);
+      
+      if (reset) {
+        setTopProducts(paginatedProducts);
+      } else {
+        setTopProducts(prev => [...prev, ...paginatedProducts]);
+      }
+      
+      setHasMore(endIndex < boostedProducts.length);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Failed to fetch top ranking products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTopProducts(1, true);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(5)].map((_, index) => (
+          <div key={index} className="flex items-center space-x-3 animate-pulse">
+            <div className="w-12 h-12 bg-gray-200 rounded"></div>
+            <div className="flex-1">
+              <div className="h-3 bg-gray-200 rounded mb-1"></div>
+              <div className="h-2 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!topProducts.length) {
+    return (
+      <div className="text-center py-4 text-gray-500 text-sm">
+        No premium products available
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {topProducts.map((product) => {
+        const imageUrl = product.primary_image || 
+                        product.thumb || 
+                        product.image_url ||
+                        (product.media && product.media[0]?.file) ||
+                        '/images/img_image_2.png';
+        
+        return (
+          <Link 
+            key={product.id} 
+            to={`/product/${product.id}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg transition-colors group"
+          >
+            <div className="flex-shrink-0">
+              <img 
+                src={imageUrl} 
+                alt={product.title} 
+                className="w-12 h-12 object-cover rounded border border-gray-200"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-gray-800 group-hover:text-blue-600 line-clamp-2 leading-tight">
+                {product.title}
+              </h4>
+            </div>
+          </Link>
+        );
+      })}
+      
+      {/* Pagination Controls */}
+      {hasMore && (
+        <div className="pt-3 border-t border-gray-200">
+          <button
+            onClick={() => loadTopProducts(currentPage + 1, false)}
+            disabled={loading}
+            className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Loading...' : 'Show More'}
+          </button>
+        </div>
+      )}
+      
+      {/* Product Count Info */}
+      {totalProducts > productsPerPage && (
+        <div className="text-xs text-gray-500 text-center pt-2">
+          Showing {topProducts.length} of {totalProducts} boosted products
+        </div>
+      )}
+    </div>
+  );
+}
+
 const LandingPage = () => {
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated, logout: authLogout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +179,7 @@ const LandingPage = () => {
   const [isMobileCategoriesOpen, setIsMobileCategoriesOpen] = useState(false);
   const [expandedMobile, setExpandedMobile] = useState({}); // { [id]: boolean }
   const [isMobileAppOpen, setIsMobileAppOpen] = useState(false);
+  const [isMobileBusinessTypeOpen, setIsMobileBusinessTypeOpen] = useState(false);
   // Contact Seller modal state (shared with ProductDetails)
   const [contactOpen, setContactOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -54,6 +194,8 @@ const LandingPage = () => {
   const [prSubmitting, setPrSubmitting] = useState(false);
   const [prError, setPrError] = useState('');
   const [prSuccess, setPrSuccess] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('info'); // 'success', 'error', 'info', 'warning'
   const [prProductName, setPrProductName] = useState('');
   const [prQuantity, setPrQuantity] = useState('');
   const [prUnitType, setPrUnitType] = useState('pieces');
@@ -71,7 +213,7 @@ const LandingPage = () => {
   const [prCatLoading, setPrCatLoading] = useState(false);
   const [prCatError, setPrCatError] = useState('');
   const [prBudget, setPrBudget] = useState('');
-  const [prCurrency, setPrCurrency] = useState('USD');
+  const [prCurrency, setPrCurrency] = useState('NGN');
   const [prIsBuyer, setPrIsBuyer] = useState(false);
   const [prIsSupplier, setPrIsSupplier] = useState(false);
   const [prOnlyPaid, setPrOnlyPaid] = useState(false);
@@ -86,6 +228,105 @@ const LandingPage = () => {
   const [prMaxBudget, setPrMaxBudget] = useState('');
   // removed: prAttachmentLink (Attachment Link field)
 
+
+  // Language state
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  
+  const languages = [
+    { code: 'en', name: t('english') },
+    { code: 'de', name: t('german') },
+    { code: 'fr', name: t('french') },
+    { code: 'es', name: t('spanish') },
+    { code: 'ru', name: t('russian') }
+  ];
+  
+  const currentLanguage = languages.find(lang => lang.code === i18n.language)?.name || t('english');
+
+  // Business Type Filter state
+  const [isBusinessTypeDropdownOpen, setIsBusinessTypeDropdownOpen] = useState(false);
+  const [selectedBusinessType, setSelectedBusinessType] = useState(() => {
+    // Load saved business type from localStorage on initialization
+    try {
+      return localStorage.getItem('atlas_business_type_filter') || '';
+    } catch (error) {
+      console.warn('Failed to load business type filter from localStorage:', error);
+      return '';
+    }
+  });
+  
+  const businessTypes = [
+    { code: '', name: t('allBusinessTypes') || 'All Business Types' },
+    { code: 'ASSOCIATION', name: t('association') || 'Association' },
+    { code: 'RETAILER', name: t('retailer') || 'Retailer' },
+    { code: 'MANUFACTURER', name: t('manufacturer') || 'Manufacturer' },
+    { code: 'DISTRIBUTOR', name: t('distributor') || 'Distributor' }
+    // Removed AGENT option as requested
+  ];
+  
+  const currentBusinessType = businessTypes.find(bt => bt.code === selectedBusinessType)?.name || businessTypes[0].name;
+
+  // Enhanced search helper functions
+  const buildSearchUrl = (searchText, filters = {}) => {
+    const params = new URLSearchParams();
+    if (searchText?.trim()) params.set('q', searchText.trim());
+    if (filters.category) params.set('category', filters.category);
+    if (filters.categoryName) params.set('category_name', filters.categoryName);
+    if (filters.includeSubcategories !== undefined) params.set('include_subcategories', filters.includeSubcategories);
+    if (filters.businessType) params.set('business_type', filters.businessType);
+    if (filters.minPrice) params.set('min_price', filters.minPrice);
+    if (filters.maxPrice) params.set('max_price', filters.maxPrice);
+    if (filters.atlasId) params.set('atlas_id', filters.atlasId);
+    return `/?${params.toString()}`;
+  };
+
+  const executeEnhancedSearch = (searchText, additionalFilters = {}) => {
+    const filters = { ...searchFilters, ...additionalFilters };
+    const params = new URLSearchParams();
+    
+    if (searchText?.trim()) params.set('q', searchText.trim());
+    if (filters.category) params.set('category', filters.category);
+    if (filters.categoryName) params.set('category_name', filters.categoryName);
+    if (filters.includeSubcategories !== undefined) params.set('include_subcategories', filters.includeSubcategories);
+    if (filters.businessType) params.set('business_type', filters.businessType);
+    if (filters.minPrice) params.set('min_price', filters.minPrice);
+    if (filters.maxPrice) params.set('max_price', filters.maxPrice);
+    if (filters.atlasId) params.set('atlas_id', filters.atlasId);
+    
+    // Navigate to dedicated search results page
+    navigate(`/search?${params.toString()}`);
+  };
+
+  // Mobile search handlers
+  const handleMobileSearch = (searchText = mobileSearchTerm) => {
+    if (!searchText?.trim()) return;
+    
+    // Detect Atlas ID pattern (e.g., ATL0JZTVA8O)
+    const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+    const filters = { ...searchFilters };
+    
+    if (atlasIdPattern.test(searchText.trim())) {
+      filters.atlasId = searchText.trim().toUpperCase();
+    }
+    
+    executeEnhancedSearch(searchText.trim(), filters);
+    setIsMobileSearchOpen(false);
+    setMobileSearchTerm('');
+  };
+
+  const openMobileSearch = () => {
+    setIsMobileSearchOpen(true);
+    // Sync mobile search term with desktop search term
+    setMobileSearchTerm(searchTerm);
+  };
+
+  const closeMobileSearch = () => {
+    setIsMobileSearchOpen(false);
+    setMobileSuggestResults([]);
+    setMobileSuggestLoading(false);
+  };
+
+
+
   const resetPR = () => {
     setPrProductName('');
     setPrQuantity('');
@@ -97,7 +338,7 @@ const LandingPage = () => {
     setPrCategoryId('');
     setPrCategoryName('');
     setPrBudget('');
-    setPrCurrency('USD');
+    setPrCurrency('NGN');
     setPrIsBuyer(false);
     setPrIsSupplier(false);
     setPrOnlyPaid(false);
@@ -113,6 +354,7 @@ const LandingPage = () => {
     setPrTargetUnitPrice('');
     setPrMaxBudget('');
   };
+
 
   // Ensure success alert is visible
   useEffect(() => {
@@ -218,30 +460,58 @@ const LandingPage = () => {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
   // Live suggestions (debounced header search)
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestResults, setSuggestResults] = useState([]);
 
+  // Enhanced search state with category support
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
+  const [includeSubcategories, setIncludeSubcategories] = useState(true);
+  const [searchFilters, setSearchFilters] = useState({
+    category: null,
+    categoryName: '',
+    includeSubcategories: true,
+    businessType: '',
+    minPrice: '',
+    maxPrice: '',
+  });
+
+  // Mobile search state
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [mobileSearchTerm, setMobileSearchTerm] = useState('');
+  const [mobileSuggestResults, setMobileSuggestResults] = useState([]);
+  const [mobileSuggestLoading, setMobileSuggestLoading] = useState(false);
+
+  // Smart search - detect category names and suggest categories
+  const getCategorySuggestion = (searchTerm) => {
+    if (!searchTerm || !rootCategories) return null;
+    
+    const term = searchTerm.toLowerCase().trim();
+    const matchingCategory = rootCategories.find(cat => 
+      cat.name.toLowerCase().includes(term) || term.includes(cat.name.toLowerCase())
+    );
+    
+    return matchingCategory;
+  };
+
   // Slider state (images are free Unsplash placeholders; you can swap the URLs later)
   const slides = [
     {
       image: '/images/img_image_2.png',
-      title: 'Shop the latest',
-      subtitle: 'Fresh arrivals from top brands',
+      title: t('shopLatest'),
+      subtitle: t('freshArrivals'),
     },
     {
       image: '/images/img_unsplash2cfzfb08um.png',
-      title: 'Featured selection',
-      subtitle: 'Curated picks for you',
+      title: t('featuredSelection'),
+      subtitle: t('curatedPicks'),
     },
     {
       image: '/images/warehouse.png',
-      title: 'Efficient warehousing',
-      subtitle: 'Seamless fulfillment and logistics',
+      title: t('efficientWarehousing'),
+      subtitle: t('seamlessFulfillment'),
     },
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -257,38 +527,30 @@ const LandingPage = () => {
 
   // Video Channel moved to its own page
 
-  // On mount or URL change, if q param present, perform search
+
+  // On mount or URL change, if search params present, redirect to search results page
   useEffect(() => {
     const params = new URLSearchParams(location.search || '');
     const q = params.get('q') || '';
-    if (!q || q.trim().length < 2) return;
-    setSearchTerm(q);
-    (async () => {
-      setSearchLoading(true); setSearchError('');
-      const candidates = [ { key: 'q', val: q }, { key: 'query', val: q }, { key: 'keyword', val: q } ];
-      let lastErr = null;
-      for (const cand of candidates) {
-        try {
-          const data = await searchProducts({ [cand.key]: cand.val });
-          const results = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-          setSearchResults(results);
-          lastErr = null;
-          break;
-        } catch (e) {
-          lastErr = e;
-          // try next key
-        }
-      }
-      if (lastErr) {
-        console.error('Search failed', lastErr);
-        const msg = lastErr?.data ? JSON.stringify(lastErr.data) : (lastErr?.message || 'Search failed');
-        setSearchError(msg);
-      }
-      setSearchLoading(false);
-    })();
-  }, [location.search]);
+    const category = params.get('category') || '';
+    const categoryName = params.get('category_name') || '';
+    const atlasId = params.get('atlas_id') || '';
+    const minPrice = params.get('min_price') || '';
+    const maxPrice = params.get('max_price') || '';
+    
+    // If we have search parameters on the landing page, redirect to search results page
+    const hasTextQuery = q && q.trim().length >= 2;
+    const hasCategoryQuery = category || categoryName;
+    const hasAtlasId = atlasId && atlasId.trim().length > 0;
+    const hasPriceFilter = minPrice || maxPrice;
+    
+    if (hasTextQuery || hasCategoryQuery || hasAtlasId || hasPriceFilter) {
+      // Redirect to search results page with current parameters
+      navigate(`/search${location.search}`);
+    }
+  }, [location.search, navigate]);
 
-  // Debounced live suggestions for header input
+  // Enhanced debounced live suggestions with category support
   useEffect(() => {
     const term = (searchTerm || '').trim();
     if (term.length < 2) {
@@ -301,29 +563,33 @@ const LandingPage = () => {
     let active = true;
     const handle = setTimeout(async () => {
       try {
-        const candidates = [
-          { key: 'q', val: term },
-          { key: 'product_name', val: term },
-        ];
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+          ...(selectedBusinessType && { business_type: selectedBusinessType }),
+        };
+
+        // Try enhanced search first
         let resultsArr = [];
-        let lastErr = null;
-        for (const cand of candidates) {
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for suggestions, falling back to basic search:', err);
+          // Fallback to basic search if enhanced fails
           try {
-            // Try page_size first, fall back to limit
-            const data = await searchProducts({ [cand.key]: cand.val, page_size: 5 });
-            const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-            resultsArr = arr;
-            lastErr = null;
-            // If we have any results, stop. Otherwise, try with 'limit' as some backends use it.
-            if (arr && arr.length) break;
-            const data2 = await searchProducts({ [cand.key]: cand.val, limit: 5 });
-            const arr2 = Array.isArray(data2?.results) ? data2.results : (Array.isArray(data2) ? data2 : []);
-            resultsArr = arr2;
-            if (arr2 && arr2.length) break;
-          } catch (err) {
-            lastErr = err;
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for suggestions:', fallbackErr);
+            resultsArr = [];
           }
         }
+
         if (!active) return;
         setSuggestResults(resultsArr || []);
         setSuggestOpen(true);
@@ -337,6 +603,56 @@ const LandingPage = () => {
     }, 300);
     return () => { active = false; clearTimeout(handle); };
   }, [searchTerm]);
+
+  // Mobile search suggestions
+  useEffect(() => {
+    const term = (mobileSearchTerm || '').trim();
+    if (term.length < 2) {
+      setMobileSuggestResults([]);
+      setMobileSuggestLoading(false);
+      return;
+    }
+    setMobileSuggestLoading(true);
+    let active = true;
+    const handle = setTimeout(async () => {
+      try {
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+          ...(selectedBusinessType && { business_type: selectedBusinessType }),
+        };
+
+        // Try enhanced search first
+        let resultsArr = [];
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for mobile suggestions, falling back to basic search:', err);
+          try {
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for mobile suggestions:', fallbackErr);
+            resultsArr = [];
+          }
+        }
+
+        if (!active) return;
+        setMobileSuggestResults(resultsArr || []);
+      } catch (e) {
+        if (!active) return;
+        setMobileSuggestResults([]);
+      } finally {
+        if (active) setMobileSuggestLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [mobileSearchTerm]);
   useEffect(() => {
     const id = setInterval(nextSlide, 5000);
     return () => clearInterval(id);
@@ -479,13 +795,23 @@ const LandingPage = () => {
       setLpLoading(true); setLpError('');
       try {
         const LIMIT = 8;
-        const data = await listGeneral({ limit: LIMIT, page: 1 });
+        let data;
+        
+        // Use saved business type filter from localStorage
+        if (selectedBusinessType && selectedBusinessType !== '') {
+          console.log('Loading products with saved business type filter:', selectedBusinessType);
+          data = await fetchProductsByBusinessType(selectedBusinessType, { limit: LIMIT, page: 1 });
+        } else {
+          data = await listGeneral({ limit: LIMIT, page: 1 });
+        }
+        
         const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
         const mapped = arr.map(p => {
           // Derive the highest rating from API fields; fallback to average rating, then 0
           const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
           const rating = Number(rawRating) || 0;
           return {
+            ...p, // Preserve all original fields including subscription_badge
             id: p.id,
             title: p.title || p.name || 'Untitled',
             thumb: getProductThumb(p),
@@ -504,7 +830,24 @@ const LandingPage = () => {
       } finally { setLpLoading(false); }
     };
     load();
-  }, []);
+  }, [selectedBusinessType]); // Add selectedBusinessType as dependency
+
+  // Handle browser navigation (back/forward) to maintain filter state
+  useEffect(() => {
+    const handlePopState = () => {
+      // Check if we're back on the landing page and reload products with current filter
+      if (window.location.pathname === '/' || window.location.pathname === '') {
+        console.log('Navigated back to landing page, reloading with current filter:', selectedBusinessType);
+        // Small delay to ensure component is ready
+        setTimeout(() => {
+          loadProductsWithBusinessType(selectedBusinessType);
+        }, 100);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedBusinessType]);
 
   const loadMoreLanding = async () => {
     if (lpLoadingMore || !lpHasMore) return;
@@ -513,12 +856,21 @@ const LandingPage = () => {
     try {
       const LIMIT = 8;
       const nextPage = lpPage + 1;
-      const data = await listGeneral({ limit: LIMIT, page: nextPage });
+      let data;
+      
+      if (selectedBusinessType && selectedBusinessType !== '') {
+        // Use business type filter API for load more
+        data = await fetchProductsByBusinessType(selectedBusinessType, { limit: LIMIT, page: nextPage });
+      } else {
+        // Use general product list (no filter)
+        data = await listGeneral({ limit: LIMIT, page: nextPage });
+      }
       const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
       const mapped = arr.map(p => {
         const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
         const rating = Number(rawRating) || 0;
         return {
+          ...p, // Preserve all original fields including subscription_badge
           id: p.id,
           title: p.title || p.name || 'Untitled',
           thumb: getProductThumb(p),
@@ -541,6 +893,49 @@ const LandingPage = () => {
       setLpError(e?.message || 'Failed to load more products');
     } finally {
       setLpLoadingMore(false);
+    }
+  };
+
+  // Load products with business type filter
+  const loadProductsWithBusinessType = async (businessType) => {
+    setLpLoading(true); 
+    setLpError('');
+    try {
+      const LIMIT = 8;
+      let data;
+      
+      if (businessType && businessType !== '') {
+        // Use business type filter API
+        data = await fetchProductsByBusinessType(businessType, { limit: LIMIT, page: 1 });
+      } else {
+        // Use general product list (no filter)
+        data = await listGeneral({ limit: LIMIT, page: 1 });
+      }
+      
+      const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+      const mapped = arr.map(p => {
+        // Derive the highest rating from API fields; fallback to average rating, then 0
+        const rawRating = p?.highest_rating ?? p?.max_rating ?? p?.highest_review ?? p?.average_rating ?? p?.avg_rating ?? p?.rating ?? p?.stars ?? 0;
+        const rating = Number(rawRating) || 0;
+        return {
+          ...p, // Preserve all original fields including subscription_badge
+          id: p.id,
+          title: p.title || p.name || 'Untitled',
+          thumb: getProductThumb(p),
+          rating,
+        };
+      });
+      setLandingProducts(mapped);
+      const totalCount = typeof data?.count === 'number' ? data.count : undefined;
+      const next = data?.next;
+      const hasMore = Boolean(next) || (typeof totalCount === 'number' ? mapped.length < totalCount : mapped.length === LIMIT);
+      setLpHasMore(hasMore);
+      setLpPage(1);
+    } catch (e) {
+      console.error('Load products with business type filter failed', e);
+      setLpError(e?.message || 'Failed to load products');
+    } finally { 
+      setLpLoading(false); 
     }
   };
 
@@ -631,23 +1026,17 @@ const LandingPage = () => {
       megaCloseTimeout.current = null;
     }
     setIsMegaOpen(true);
-    // Prefetch first few roots for instant hover UX
+    // Prefetch all root categories for immediate display
     queueMicrotask?.(() => {
-      const PREFETCH_COUNT = 4;
+      const PREFETCH_COUNT = 12; // Show up to 12 categories in 4 columns
       const ids = (rootCategories || []).slice(0, PREFETCH_COUNT).map(r => r.id);
       ids.forEach((rid) => {
         if (!categoryTrees[rid] && !loadingTrees[rid]) {
           ensureTree(rid);
         }
       });
-      // If nothing is hovered yet, select the first root so the panel isn't empty
-      if (!hoveredRootId && Array.isArray(rootCategories) && rootCategories.length > 0) {
-        const firstId = rootCategories[0].id;
-        setHoveredRootId(firstId);
-        if (!categoryTrees[firstId] && !loadingTrees[firstId]) ensureTree(firstId);
-      }
     });
-  }, [rootCategories, categoryTrees, loadingTrees, ensureTree, hoveredRootId]);
+  }, [rootCategories, categoryTrees, loadingTrees, ensureTree]);
 
   const delayedCloseMega = useCallback(() => {
     if (megaCloseTimeout.current) clearTimeout(megaCloseTimeout.current);
@@ -674,7 +1063,17 @@ const LandingPage = () => {
       sideCloseTimeout.current = null;
     }
     setIsSideMegaOpen(true);
-  }, []);
+    // Prefetch categories for sidebar
+    queueMicrotask?.(() => {
+      const PREFETCH_COUNT = 8; // Show up to 8 categories in 2 columns
+      const ids = (rootCategories || []).slice(0, PREFETCH_COUNT).map(r => r.id);
+      ids.forEach((rid) => {
+        if (!categoryTrees[rid] && !loadingTrees[rid]) {
+          ensureTree(rid);
+        }
+      });
+    });
+  }, [rootCategories, categoryTrees, loadingTrees, ensureTree]);
 
   const delayedCloseSideMega = useCallback(() => {
     if (sideCloseTimeout.current) clearTimeout(sideCloseTimeout.current);
@@ -688,15 +1087,41 @@ const LandingPage = () => {
 
   const sideHoveredTree = useMemo(() => (sideHoveredRootId ? categoryTrees[sideHoveredRootId] : null), [sideHoveredRootId, categoryTrees]);
 
-  const onSelectCategory = useCallback((id) => {
+  const onSelectCategory = useCallback((id, categoryName = '') => {
     if (!id && id !== 0) return;
     try {
-      navigate(`/category/${id}`);
+      // If there's an active search term, perform enhanced search with category filter including subcategories
+      if (searchTerm?.trim()) {
+        setSearchFilters(prev => ({
+          ...prev,
+          category: id,
+          categoryName: categoryName,
+          includeSubcategories: true // Always include subcategories for better search results
+        }));
+        executeEnhancedSearch(searchTerm, { 
+          category: id, 
+          categoryName, 
+          includeSubcategories: true 
+        });
+      } else {
+        // No active search, perform category search with subcategories included
+        setSearchFilters(prev => ({
+          ...prev,
+          category: id,
+          categoryName: categoryName,
+          includeSubcategories: true
+        }));
+        executeEnhancedSearch('', { 
+          category: id, 
+          categoryName, 
+          includeSubcategories: true 
+        });
+      }
     } finally {
       setIsMegaOpen(false);
       setHoveredRootId(null);
     }
-  }, [navigate]);
+  }, [navigate, searchTerm, executeEnhancedSearch, setSearchFilters]);
 
   // Function to sync with AuthContext
   const syncWithAuthContext = () => {
@@ -794,10 +1219,37 @@ const LandingPage = () => {
   const handleBecomeAgentClick = (e) => {
     if (!isAuthenticated) {
       e.preventDefault();
+      // Show login required message using platform alert
+      setAlertMessage('Please login to access the Become an Agent page.');
+      setAlertType('warning');
       setAuthStartType('login');
       setShowAuthFlow(true);
     }
     // If logged in, the Link will navigate normally
+  };
+
+  // Language selection handler
+  const handleLanguageSelect = (language) => {
+    i18n.changeLanguage(language.code);
+    setIsLanguageDropdownOpen(false);
+    console.log(`Language changed to: ${language.name} (${language.code})`);
+  };
+
+  // Business Type selection handler
+  const handleBusinessTypeSelect = (businessType) => {
+    setSelectedBusinessType(businessType.code);
+    setIsBusinessTypeDropdownOpen(false);
+    console.log(`Business type filter changed to: ${businessType.name} (${businessType.code})`);
+    
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('atlas_business_type_filter', businessType.code);
+    } catch (error) {
+      console.warn('Failed to save business type filter to localStorage:', error);
+    }
+    
+    // Reload products with business type filter
+    loadProductsWithBusinessType(businessType.code);
   };
 
 
@@ -817,55 +1269,169 @@ const LandingPage = () => {
       if (isMobileMenuOpen && !event.target.closest('.mobile-menu-container')) {
         setIsMobileMenuOpen(false);
       }
+      if (isLanguageDropdownOpen && !event.target.closest('.language-dropdown')) {
+        setIsLanguageDropdownOpen(false);
+      }
+      if (isBusinessTypeDropdownOpen && !event.target.closest('.business-type-dropdown')) {
+        setIsBusinessTypeDropdownOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isAccountDropdownOpen, isMobileMenuOpen]);
+  }, [isAccountDropdownOpen, isMobileMenuOpen, isLanguageDropdownOpen, isBusinessTypeDropdownOpen]);
+
+  // Clear alert when user logs in
+  useEffect(() => {
+    if (isAuthenticated && alertMessage) {
+      setAlertMessage('');
+    }
+  }, [isAuthenticated, alertMessage]);
 
   // Show AuthFlow as modal if authentication is needed
 
   return (
     <div className="relative w-full min-h-screen bg-[#FAFBFC]">
+      {/* Alert Messages */}
+      {alertMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div className={`mb-4 flex items-start gap-2 px-3 py-2 rounded border text-sm ${
+            alertType === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+            alertType === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+            alertType === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+            'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            <div className="mt-0.5">{
+              alertType === 'success' ? '✔' :
+              alertType === 'error' ? '⚠' :
+              alertType === 'warning' ? '⚠' :
+              'ℹ'
+            }</div>
+            <div className="flex-1">{alertMessage}</div>
+            <button className="text-xs opacity-60 hover:opacity-100" onClick={() => setAlertMessage('')}>✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Header Navigation */}
       <header className="w-full bg-white shadow-sm">
-        <div className="mx-auto px-4 sm:px-6 py-4 max-w-7xl flex items-center justify-between flex-nowrap">
-          <div className="flex items-center space-x-4 sm:space-x-8 flex-nowrap">
-            {/* Logo */}
-            <Logo to="/" height="h-20 md:h-24" />
+        <div className="mx-auto px-2 sm:px-4 py-5 max-w-none flex items-center justify-start flex-nowrap">
+          <div className="flex items-center space-x-2 sm:space-x-4 lg:space-x-8 flex-nowrap min-w-0">
+            {/* Logo - Extra compact on mobile to prevent overlap */}
+            <div className="flex-shrink-0">
+              <Logo to="/" height="h-10 sm:h-14 md:h-20 lg:h-24" />
+            </div>
 
             {/* Product text */}
-            <div className="hidden md:flex items-center">
+            <div className="hidden xl:flex items-center">
               <span className="text-gray-700">Product</span>
             </div>
 
-            <div className="hidden md:block relative w-64 lg:w-96">
+            <div className="hidden md:block relative flex-none w-[120px] sm:w-[140px] lg:w-[180px] xl:w-[220px] ml-1 sm:ml-2 lg:ml-3 mr-1 sm:mr-2">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { navigate(`/?q=${encodeURIComponent(searchTerm.trim())}`); } }}
-                placeholder="Enter keyword to search Product..."
+                onKeyDown={(e) => { 
+                  if (e.key === 'Enter') { 
+                    const searchText = searchTerm.trim();
+                    if (!searchText) return;
+                    
+                    // Check if there's a category suggestion for this search term
+                    const categorySuggestion = getCategorySuggestion(searchText);
+                    
+                    // Detect Atlas ID pattern
+                    const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                    const filters = { ...searchFilters };
+                    
+                    if (atlasIdPattern.test(searchText)) {
+                      filters.atlasId = searchText.toUpperCase();
+                      executeEnhancedSearch(searchText, filters);
+                    } else if (categorySuggestion) {
+                      // If there's a category suggestion, navigate to category page instead of searching
+                      navigate(`/category/${categorySuggestion.id}`);
+                      setSuggestOpen(false);
+                      return;
+                    } else {
+                      executeEnhancedSearch(searchText, filters);
+                    }
+                    setSuggestOpen(false);
+                  } 
+                }}
+                placeholder={t('searchPlaceholder') || "Enter keyword, Atlas ID (ATL...), or product name..."}
                 className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent"
               />
               <button
-                onClick={() => navigate(`/?q=${encodeURIComponent(searchTerm.trim())}`)}
+                onClick={() => {
+                  const searchText = searchTerm.trim();
+                  if (!searchText) return;
+                  
+                  // Check if there's a category suggestion for this search term
+                  const categorySuggestion = getCategorySuggestion(searchText);
+                  
+                  // Detect Atlas ID pattern
+                  const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                  const filters = { ...searchFilters };
+                  
+                  if (atlasIdPattern.test(searchText)) {
+                    filters.atlasId = searchText.toUpperCase();
+                    executeEnhancedSearch(searchText, filters);
+                  } else if (categorySuggestion) {
+                    // If there's a category suggestion, navigate to category page instead of searching
+                    navigate(`/category/${categorySuggestion.id}`);
+                    setSuggestOpen(false);
+                    return;
+                  } else {
+                    executeEnhancedSearch(searchText, filters);
+                  }
+                  setSuggestOpen(false);
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#027DDB] text-white p-2 rounded-md hover:bg-[#0266b3] transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
-              {searchTerm.trim().length >= 2 && (
-                <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+              {searchTerm.trim().length >= 2 && suggestOpen && (
+                <div className="absolute left-0 mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                   <div className="px-3 py-2 text-xs text-gray-500">
                     {suggestLoading ? 'Searching…' : `Results for "${searchTerm.trim()}"`}
                   </div>
                   <div className="max-h-80 overflow-auto divide-y divide-gray-100">
-                    {(!suggestLoading && (!Array.isArray(suggestResults) || suggestResults.length === 0)) && (
-                      <div className="px-4 py-3 text-sm text-gray-500">No results</div>
+                    {/* Category suggestion if search term matches a category */}
+                    {(() => {
+                      const categorySuggestion = getCategorySuggestion(searchTerm.trim());
+                      if (categorySuggestion) {
+                        return (
+                          <div
+                            className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              navigate(`/category/${categorySuggestion.id}`);
+                              setSearchTerm('');
+                              setSuggestOpen(false);
+                            }}
+                          >
+                            <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-blue-800 font-medium">Browse {categorySuggestion.name} Category</div>
+                              <div className="text-xs text-blue-600">View all products in this category</div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
+                    {/* Product search results */}
+                    {(!suggestLoading && (!Array.isArray(suggestResults) || suggestResults.length === 0) && !getCategorySuggestion(searchTerm.trim())) && (
+                      <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
                     )}
                     {Array.isArray(suggestResults) && suggestResults.map((p) => {
                       const id = p?.id ?? p?.pk ?? p?.uuid;
@@ -887,10 +1453,10 @@ const LandingPage = () => {
                             {thumb ? (
                               <img src={thumb} alt={title} className="w-10 h-10 object-cover" />
                             ) : (
-                              <div className="w-10 h-10 flex items-center justify-center text-[10px] text-gray-400">No image</div>
+                              <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No img</div>
                             )}
                           </div>
-                          <div className="min-w-0">
+                          <div className="flex-1 min-w-0">
                             <div className="text-sm text-gray-800 truncate">{displayTitle}</div>
                             <div className="text-xs text-gray-500 truncate">#{id}</div>
                           </div>
@@ -901,23 +1467,24 @@ const LandingPage = () => {
                 </div>
               )}
             </div>
+
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-6 flex-nowrap">
-            {/* Mobile Atlas ID and Account - Show on mobile */}
-            <div className="flex lg:hidden items-center space-x-2">
-              {/* Mobile Atlas ID */}
-              <div className="text-xs">
+          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-nowrap shrink-0 ml-2 sm:ml-3">
+            {/* Mobile Atlas ID and Account - Ultra compact for mobile */}
+            <div className="flex lg:hidden items-center min-w-0">
+              {/* Mobile Atlas ID - Ultra compact layout */}
+              <div className="text-xs min-w-0 max-w-[120px]">
                 {isLoading ? (
-                  <span className="animate-pulse text-gray-700">Loading...</span>
+                  <span className="animate-pulse text-gray-700 text-xs">Loading...</span>
                 ) : (
-                  <div className="flex flex-col items-end">
-                    <div className="text-gray-700 font-medium text-xs">Atlas-WD</div>
-                    <div className="flex items-center space-x-1">
-                      <span className="text-gray-600 text-xs">
+                  <div className="flex flex-col items-end min-w-0">
+                    <div className="text-gray-700 font-medium text-xs whitespace-nowrap">Atlas-WD</div>
+                    <div className="flex items-center space-x-1 min-w-0">
+                      <span className="text-gray-600 text-xs truncate max-w-[80px]">
                         {isLoggedIn && userAtlasId ? `#${userAtlasId}` : 'Guest'}
                       </span>
-                      <div className={`w-2 h-2 rounded-full ${
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                         isLoggedIn ? getStatusStyling(businessVerificationStatus).dotColor : 'bg-gray-400'
                       }`}></div>
                     </div>
@@ -960,7 +1527,7 @@ const LandingPage = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-sm">Account</span>
+                <span className="text-lg">Account</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -1196,7 +1763,7 @@ const LandingPage = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
-              <span className="hidden lg:inline text-sm">Messages</span>
+              <span className="hidden lg:inline text-lg">Messages</span>
               {isLoggedIn && notif.unread_messages > 0 && (
                 <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold flex items-center justify-center">
                   {Math.min(99, notif.unread_messages)}
@@ -1207,7 +1774,7 @@ const LandingPage = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <span className="hidden lg:inline text-sm">Product request</span>
+              <span className="hidden lg:inline text-lg">Product request</span>
               {isLoggedIn && prTotalCount > 0 && (
                 <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold flex items-center justify-center">
                   {Math.min(99, prTotalCount)}
@@ -1218,7 +1785,7 @@ const LandingPage = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              <span className="hidden lg:inline text-sm">Video Channel</span>
+              <span className="hidden lg:inline text-lg">Video Channel</span>
             </Link>
 
             {/* Account Dropdown - Tablet/Desktop */}
@@ -1232,7 +1799,7 @@ const LandingPage = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-sm font-medium">Account</span>
+                <span className="text-lg font-medium">Account</span>
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -1316,7 +1883,7 @@ const LandingPage = () => {
                     {/* Company label hidden per request */}
                     <span className="font-medium">Atlas-WD LLC</span>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-end space-x-2">
                     {/* Show Atlas ID only if logged in, otherwise show generic text */}
                     <span className="text-gray-600 text-xs">
                       {isLoggedIn && userAtlasId ? `ATLAS ID: ${userAtlasId}` : 'Guest User'}
@@ -1364,19 +1931,11 @@ const LandingPage = () => {
                 onClick={handleBecomeAgentClick}
                 className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100"
               >
-                Become an Agent {!isLoggedIn && <span className="text-xs text-gray-500">(Login Required)</span>}
+                Become an Agent
               </Link>
               <Link to="/top-ranking" className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
                 Top Ranking Product
               </Link>
-              <div className="border-b border-gray-100">
-                <button className="w-full text-left py-2 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center justify-between">
-                  <span>Manufacturer</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
               <div className="border-b border-gray-100">
                 <button
                   className="w-full text-left py-2 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center justify-between"
@@ -1397,8 +1956,8 @@ const LandingPage = () => {
                           <path d="M318.7 268.7c-.2-36.7 16.3-64.4 49.6-84.8-18.8-27-46.9-41.8-84-44.8-35.2-2.8-73.2 20.5-87.3 20.5-14.4 0-49.1-19.5-76.1-19.5-55.6.9-115.5 45.6-115.5 136.3 0 26.8 4.9 54.6 14.8 83.5 13.2 38 60.9 131 110.2 129.5 25.9-.6 44.2-18.3 77.9-18.3 33.3 0 50.4 18.3 76.1 18.3 49.6-.7 93.1-85.3 106.3-123.4-67.2-31.9-61.9-93.1-61.9-97.3zM260.1 85.3c26.4-31.4 24-60 23.1-70.3-22.3 1.3-48.2 15-63.3 33.1-16.5 19.3-26.3 43.4-24.2 69 24.1 1.9 47-12.1 64.4-31.8z"/>
                         </svg>
                         <div className="leading-tight">
-                          <div className="text-[10px]">Download on the</div>
-                          <div className="text-sm font-semibold">App Store</div>
+                          <div className="text-[10px]">{t('downloadOnThe')}</div>
+                          <div className="text-sm font-semibold">{t('appStore')}</div>
                         </div>
                       </div>
                     </a>
@@ -1408,20 +1967,48 @@ const LandingPage = () => {
                           <path d="M325.3 234.3L104.6 13.6C96.2 5.1 85.6 0 74.1 0 49.1 0 28.2 20.9 28.2 46v420c0 25.1 20.9 46 46 46 11.5 0 22.1-5.1 30.5-13.6l220.6-220.6c17.3-17.4 17.3-45.5 0-62.8zM361.1 198.5l-34.4 34.3 121.7 121.7c8.5-8.5 13.8-20.3 13.8-33.4 0-13-5.3-24.8-13.8-33.4l-87.3-89.2zM326.7 314.9l34.4 34.4 87.3-87.3-34.4-34.4-87.3 87.3z"/>
                         </svg>
                         <div className="leading-tight">
-                          <div className="text-[10px]">GET IT ON</div>
-                          <div className="text-sm font-semibold">Google Play</div>
+                          <div className="text-[10px]">{t('getItOn')}</div>
+                          <div className="text-sm font-semibold">{t('googlePlay')}</div>
                         </div>
                       </div>
                     </a>
                   </div>
                 )}
               </div>
-              <a href="#" className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
-                Updates
-              </a>
-              <a href="#" className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
-                Help
-              </a>
+              <Link to={isLoggedIn ? "/dashboard/reports?section=faq" : "/help"} className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
+                {t('help')}
+              </Link>
+              <div className="border-b border-gray-100">
+                <button
+                  className="w-full text-left py-2 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center justify-between"
+                  onClick={() => setIsMobileBusinessTypeOpen(v => !v)}
+                  aria-expanded={isMobileBusinessTypeOpen}
+                  aria-controls="mobile-business-type-options"
+                >
+                  <span>{currentBusinessType}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isMobileBusinessTypeOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isMobileBusinessTypeOpen && (
+                  <div id="mobile-business-type-options" className="px-2 pb-3 space-y-1">
+                    {businessTypes.map((businessType) => (
+                      <button
+                        key={businessType.code}
+                        onClick={() => {
+                          handleBusinessTypeSelect(businessType);
+                          setIsMobileBusinessTypeOpen(false);
+                        }}
+                        className={`w-full text-left block px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors ${
+                          currentBusinessType === businessType.name ? 'text-[#027DDB] bg-blue-50' : 'text-gray-700'
+                        }`}
+                      >
+                        {businessType.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Link to="/dashboard/message-guide?tab=product" className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
                 Source Request
               </Link>
@@ -1442,14 +2029,136 @@ const LandingPage = () => {
           <div className="relative">
             <input
               type="text"
-              placeholder="Enter keywords to search Products"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => { 
+                if (e.key === 'Enter') { 
+                  const searchText = searchTerm.trim();
+                  if (!searchText) return;
+                  
+                  // Check if there's a category suggestion for this search term
+                  const categorySuggestion = getCategorySuggestion(searchText);
+                  
+                  // Detect Atlas ID pattern
+                  const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                  const filters = { ...searchFilters };
+                  
+                  if (atlasIdPattern.test(searchText)) {
+                    filters.atlasId = searchText.toUpperCase();
+                    executeEnhancedSearch(searchText, filters);
+                  } else if (categorySuggestion) {
+                    // If there's a category suggestion, navigate to category page instead of searching
+                    navigate(`/category/${categorySuggestion.id}`);
+                    return;
+                  } else {
+                    executeEnhancedSearch(searchText, filters);
+                  }
+                } 
+              }}
+              placeholder="Enter keyword to search Product..."
               className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent"
             />
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#027DDB] text-white p-2 rounded-md hover:bg-[#0266b3] transition-colors">
+            <button
+              onClick={() => {
+                const searchText = searchTerm.trim();
+                if (!searchText) return;
+                
+                // Check if there's a category suggestion for this search term
+                const categorySuggestion = getCategorySuggestion(searchText);
+                
+                // Detect Atlas ID pattern
+                const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                const filters = { ...searchFilters };
+                
+                if (atlasIdPattern.test(searchText)) {
+                  filters.atlasId = searchText.toUpperCase();
+                  executeEnhancedSearch(searchText, filters);
+                } else if (categorySuggestion) {
+                  // If there's a category suggestion, navigate to category page instead of searching
+                  navigate(`/category/${categorySuggestion.id}`);
+                  return;
+                } else {
+                  executeEnhancedSearch(searchText, filters);
+                }
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#027DDB] text-white p-2 rounded-md hover:bg-[#0266b3] transition-colors"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
+            {searchTerm.trim().length >= 2 && (
+              <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <div className="px-3 py-2 text-xs text-gray-500">
+                  {suggestLoading ? 'Searching…' : `Results for "${searchTerm.trim()}"`}
+                </div>
+                <div className="max-h-80 overflow-auto divide-y divide-gray-100">
+                  {/* Category suggestion if search term matches a category */}
+                  {(() => {
+                    const categorySuggestion = getCategorySuggestion(searchTerm.trim());
+                    if (categorySuggestion) {
+                      return (
+                        <div
+                          className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            navigate(`/category/${categorySuggestion.id}`);
+                            setSearchTerm('');
+                            setSuggestOpen(false);
+                          }}
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-blue-800 font-medium">Browse {categorySuggestion.name} Category</div>
+                            <div className="text-xs text-blue-600">View all products in this category</div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Product search results */}
+                  {(!suggestLoading && (!Array.isArray(suggestResults) || suggestResults.length === 0) && !getCategorySuggestion(searchTerm.trim())) && (
+                    <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
+                  )}
+                  {Array.isArray(suggestResults) && suggestResults.map((p) => {
+                    const id = p?.id ?? p?.pk ?? p?.uuid;
+                    const title = (p?.title || p?.name || 'Untitled').toString();
+                    const thumb = getProductThumb(p);
+                    const displayTitle = title.length > 60 ? `${title.slice(0, 57)}…` : title;
+                    return (
+                      <div
+                        key={id || title}
+                        className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (id) navigate(`/product/${id}`);
+                          setSearchTerm('');
+                          setSuggestOpen(false);
+                        }}
+                      >
+                        <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
+                          {thumb ? (
+                            <img src={thumb} alt={title} className="w-10 h-10 object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No img</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-gray-800 truncate">{displayTitle}</div>
+                          <div className="text-xs text-gray-500 truncate">#{id}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1466,40 +2175,21 @@ const LandingPage = () => {
                 onMouseLeave={delayedCloseMega}
               >
                 <button
-                  className={`flex items-center space-x-2 py-3 transition-colors ${isMegaOpen ? 'text-[#027DDB]' : 'text-gray-700 hover:text-[#027DDB]'}`}
+                  className={`flex items-center space-x-2 py-3 text-lg transition-colors ${isMegaOpen ? 'text-[#027DDB]' : 'text-gray-700 hover:text-[#027DDB]'}`}
                   onClick={() => openMega()}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
-                  <span className="font-medium">All Categories</span>
+                  <span className="font-medium">{t('allCategories')}</span>
                 </button>
                 {isMegaOpen && (
                   <div
-                    className="absolute left-0 top-full z-50 mt-0 w-[72rem] max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-xl"
+                    className="absolute left-0 top-full z-50 mt-0 w-[80rem] max-w-[95vw] bg-white border border-gray-200 rounded-lg shadow-xl"
                     onMouseEnter={openMega}
                     onMouseLeave={delayedCloseMega}
                   >
-                    <div className="flex">
-                      {/* Roots column */}
-                      <div className="w-64 border-r border-gray-100 p-3 space-y-1 overflow-y-auto max-h-[70vh]">
-                        {rootCategories.length === 0 ? (
-                          <div className="text-sm text-gray-500 px-2 py-1">Loading…</div>
-                        ) : (
-                          rootCategories.map((root) => (
-                            <button
-                              key={root.id}
-                              className={`w-full text-left px-3 py-2 rounded-md text-sm ${hoveredRootId === root.id ? 'bg-blue-50 text-[#027DDB]' : 'text-gray-700 hover:bg-gray-50'}`}
-                              onMouseEnter={() => handleRootHover(root.id)}
-                              onClick={() => onSelectCategory(root.id)}
-                            >
-                              {root.name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                      {/* Nested panel */}
-                      <div className="flex-1 p-4 overflow-auto max-h-[70vh]">
+                    <div className="p-6 overflow-auto max-h-[70vh]">
                         {hoveredRootId && loadingTrees[hoveredRootId] && (
                           <div className="space-y-3">
                             <div className="h-4 bg-gray-100 rounded animate-pulse w-40" />
@@ -1510,14 +2200,38 @@ const LandingPage = () => {
                             </div>
                           </div>
                         )}
-                        {!loadingTrees[hoveredRootId] && hoveredTree ? (
-                          <div className="grid grid-flow-col auto-cols-[260px] gap-4">
-                            <CategoryNode node={hoveredTree} depth={0} onSelectCategory={onSelectCategory} />
+                        {rootCategories.length > 0 ? (
+                          <div className="grid grid-cols-4 gap-6">
+                            {rootCategories.slice(0, 12).map((rootCategory) => {
+                              const categoryTree = categoryTrees[rootCategory.id];
+                              if (categoryTree) {
+                                return (
+                                  <CategoryNode 
+                                    key={rootCategory.id} 
+                                    node={categoryTree} 
+                                    depth={0} 
+                                    onSelectCategory={onSelectCategory} 
+                                  />
+                                );
+                              } else {
+                                // Show loading or basic category without children
+                                return (
+                                  <div key={rootCategory.id} className="space-y-4">
+                                    <div
+                                      className="font-bold text-lg text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
+                                      onClick={() => onSelectCategory?.(rootCategory.id, rootCategory.name)}
+                                    >
+                                      {rootCategory.name}
+                                    </div>
+                                    <div className="text-xs text-gray-400">Loading...</div>
+                                  </div>
+                                );
+                              }
+                            })}
                           </div>
-                        ) : !hoveredRootId ? (
-                          <div className="text-sm text-gray-500">Hover a root category to explore subcategories</div>
-                        ) : null}
-                      </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">Loading categories...</div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -1525,22 +2239,14 @@ const LandingPage = () => {
               <Link
                 to="/become-agent"
                 onClick={handleBecomeAgentClick}
-                className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors"
+                className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors"
               >
-                Become an Agent {!isLoggedIn && <span className="text-xs text-gray-500">(Login Required)</span>}
+                {t('becomeAgent')}
               </Link>
-              <Link to="/top-ranking" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors">Top Ranking Product</Link>
+              <Link to="/top-ranking" className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('topRanking')}</Link>
               <div className="relative group">
-                <button className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1">
-                  <span>Manufacturer</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-              <div className="relative group">
-                <button className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1">
-                  <span>App</span>
+                <button className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1">
+                  <span>{t('app')}</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -1552,8 +2258,8 @@ const LandingPage = () => {
                         <path d="M318.7 268.7c-.2-36.7 16.3-64.4 49.6-84.8-18.8-27-46.9-41.8-84-44.8-35.2-2.8-73.2 20.5-87.3 20.5-14.4 0-49.1-19.5-76.1-19.5-55.6.9-115.5 45.6-115.5 136.3 0 26.8 4.9 54.6 14.8 83.5 13.2 38 60.9 131 110.2 129.5 25.9-.6 44.2-18.3 77.9-18.3 33.3 0 50.4 18.3 76.1 18.3 49.6-.7 93.1-85.3 106.3-123.4-67.2-31.9-61.9-93.1-61.9-97.3zM260.1 85.3c26.4-31.4 24-60 23.1-70.3-22.3 1.3-48.2 15-63.3 33.1-16.5 19.3-26.3 43.4-24.2 69 24.1 1.9 47-12.1 64.4-31.8z"/>
                       </svg>
                       <div className="leading-tight text-left">
-                        <div className="text-[10px]">Download on the</div>
-                        <div className="text-sm font-semibold">App Store</div>
+                        <div className="text-[10px]">{t('downloadOnThe')}</div>
+                        <div className="text-sm font-semibold">{t('appStore')}</div>
                       </div>
                     </div>
                   </a>
@@ -1563,32 +2269,68 @@ const LandingPage = () => {
                         <path d="M325.3 234.3L104.6 13.6C96.2 5.1 85.6 0 74.1 0 49.1 0 28.2 20.9 28.2 46v420c0 25.1 20.9 46 46 46 11.5 0 22.1-5.1 30.5-13.6l220.6-220.6c17.3-17.4 17.3-45.5 0-62.8zM361.1 198.5l-34.4 34.3 121.7 121.7c8.5-8.5 13.8-20.3 13.8-33.4 0-13-5.3-24.8-13.8-33.4l-87.3-89.2zM326.7 314.9l34.4 34.4 87.3-87.3-34.4-34.4-87.3 87.3z"/>
                       </svg>
                       <div className="leading-tight text-left">
-                        <div className="text-[10px]">GET IT ON</div>
-                        <div className="text-sm font-semibold">Google Play</div>
+                        <div className="text-[10px]">{t('getItOn')}</div>
+                        <div className="text-sm font-semibold">{t('googlePlay')}</div>
                       </div>
                     </div>
                   </a>
                 </div>
               </div>
-              <a href="#" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors">Updates</a>
-              <a href="#" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors">Help</a>
-              <Link to="/dashboard/message-guide?tab=product" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors">Source Request</Link>
-            </div>
-            <div className="flex items-center">
-              <div className="relative group">
-                <button className="py-3 flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors">
-                  <span>English</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <Link to={isLoggedIn ? "/dashboard/reports?section=faq" : "/help"} className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('help')}</Link>
+              <div className="relative business-type-dropdown">
+                <button 
+                  onClick={() => setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)}
+                  className="py-3 text-lg flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                >
+                  <span>{currentBusinessType}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isBusinessTypeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {/* Business Type dropdown */}
+                {isBusinessTypeDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[9999]">
+                    {businessTypes.map((businessType) => (
+                      <button
+                        key={businessType.code}
+                        onClick={() => handleBusinessTypeSelect(businessType)}
+                        className={`w-full text-left block px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          currentBusinessType === businessType.name ? 'text-[#027DDB] bg-blue-50' : 'text-gray-700'
+                        }`}
+                      >
+                        {businessType.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Link to="/dashboard/message-guide?tab=product" className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('sourceRequest')}</Link>
+              <div className="relative ml-8 language-dropdown">
+                <button 
+                  onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                  className="py-3 text-lg flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                >
+                  <span>{currentLanguage}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 {/* Language dropdown */}
-                <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">English</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">German</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">French</a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Spanish</a>
-                </div>
+                {isLanguageDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                    {languages.map((language) => (
+                      <button
+                        key={language.code}
+                        onClick={() => handleLanguageSelect(language)}
+                        className={`w-full text-left block px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          currentLanguage === language.name ? 'text-[#027DDB] bg-blue-50' : 'text-gray-700'
+                        }`}
+                      >
+                        {language.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1620,6 +2362,7 @@ const LandingPage = () => {
         </div>
       )}
 
+
       {/* Mobile/Tablet Categories Drawer */}
       {isMobileCategoriesOpen && (
         <div className="lg:hidden fixed inset-0 z-[60]">
@@ -1639,7 +2382,7 @@ const LandingPage = () => {
                   {rootCategories.map(root => (
                     <li key={root.id} className="py-2">
                       <button
-                        className="w-full flex items-center justify-between py-2 text-left font-medium text-gray-800"
+                        className="w-full flex items-center justify-between py-2 text-left font-medium text-lg text-gray-800"
                         onClick={() => {
                           setExpandedMobile(prev => ({ ...prev, [root.id]: !prev[root.id] }));
                           if (!categoryTrees[root.id]) ensureTree(root.id);
@@ -1680,15 +2423,15 @@ const LandingPage = () => {
           {/* Categories Sidebar */}
           <aside className="w-full lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm relative">
-              <h2 className="font-semibold text-lg mb-6 text-gray-800 border-b border-gray-200 pb-3">
+              <h2 className="font-semibold text-xl mb-6 text-gray-800 border-b border-gray-200 pb-3">
                 <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-                Categories
+                {t('categories')}
               </h2>
               <ul className="space-y-3">
                 {rootCategories.length === 0 ? (
-                  <li className="text-sm text-gray-500">Loading categories…</li>
+                  <li className="text-sm text-gray-500">{t('loadingCategories')}</li>
                 ) : (
                   rootCategories.slice(0, 8).map((c) => (
                     <li key={c.id}
@@ -1696,7 +2439,7 @@ const LandingPage = () => {
                         onMouseLeave={() => { if (typeof window !== 'undefined' && window.innerWidth >= 1024) { delayedCloseSideMega(); } }}
                     >
                       <button
-                        className="w-full text-left block py-2 px-3 rounded-md text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
+                        className="w-full text-left block py-2 px-3 rounded-md text-lg text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
                         onClick={() => {
                           if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                             setIsMobileCategoriesOpen(true);
@@ -1732,13 +2475,37 @@ const LandingPage = () => {
                         </div>
                       </div>
                     )}
-                    {!loadingTrees[sideHoveredRootId] && sideHoveredTree ? (
-                      <div className="grid grid-flow-col auto-cols-[260px] gap-4">
-                        <CategoryNode node={sideHoveredTree} depth={0} onSelectCategory={onSelectCategory} />
+                    {rootCategories.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {rootCategories.slice(0, 8).map((rootCategory) => {
+                          const categoryTree = categoryTrees[rootCategory.id];
+                          if (categoryTree) {
+                            return (
+                              <CategoryNode 
+                                key={rootCategory.id} 
+                                node={categoryTree} 
+                                depth={0} 
+                                onSelectCategory={onSelectCategory} 
+                              />
+                            );
+                          } else {
+                            return (
+                              <div key={rootCategory.id} className="space-y-3">
+                                <div
+                                  className="font-bold text-sm text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-1"
+                                  onClick={() => onSelectCategory?.(rootCategory.id)}
+                                >
+                                  {rootCategory.name}
+                                </div>
+                                <div className="text-xs text-gray-400">Loading...</div>
+                              </div>
+                            );
+                          }
+                        })}
                       </div>
-                    ) : !sideHoveredRootId ? (
-                      <div className="text-sm text-gray-500">Hover a category to explore subcategories</div>
-                    ) : null}
+                    ) : (
+                      <div className="text-sm text-gray-500">Loading categories...</div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1778,7 +2545,7 @@ const LandingPage = () => {
                         onClick={handleBecomeAgentClick}
                         className="inline-block bg-[#027DDB] text-white px-5 py-2.5 rounded-md text-sm sm:text-base hover:bg-[#0266b3] transition-colors"
                       >
-                        Explore Now
+                        {t('exploreNow')}
                       </Link>
                     </div>
                   </div>
@@ -1824,11 +2591,18 @@ const LandingPage = () => {
           {/* You May Like Sidebar */}
           <aside className="w-full lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <h2 className="font-semibold text-lg mb-4 text-gray-800">You May Like</h2>
-              <div className="text-gray-500 text-sm">Coming soon</div>
+              <h2 className="font-semibold text-lg mb-4 text-gray-800">{t('youMayLike')}</h2>
+              <LandingSidebarTopRanking />
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <button onClick={() => setPrOpen(true)} className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm">
-                  Post Your Product Request Now
+                <button onClick={() => {
+                  if (!isLoggedIn) {
+                    setAuthStartType('login');
+                    setShowAuthFlow(true);
+                    return;
+                  }
+                  setPrOpen(true);
+                }} className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm">
+                  {t('postProductRequest')}
                 </button>
               </div>
             </div>
@@ -1838,12 +2612,14 @@ const LandingPage = () => {
 
       {/* Video Channel moved to dedicated route /video-channel */}
 
+
       {/* Trending Products Section - Separate from Banner */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
-        <section>
+      {(
+        <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+          <section>
           <div className="text-center mb-6 sm:mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Trending Products</h2>
-            <p className="text-gray-600">Find our online product that best for everyone</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{t('trendingProducts')}</h2>
+            <p className="text-gray-600">{t('findOnlineProduct')}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
             {lpLoading && (
@@ -1859,20 +2635,44 @@ const LandingPage = () => {
                 rating={p.rating ?? 0}
                 imageUrl={p.thumb}
                 title={p.title}
+                subscriptionBadge={p.subscription_badge}
+                dailyBoosterBadge={p.daily_booster_badge}
+                isBoosted={p.is_boosted}
+                boosterEndDate={p.booster_end_date}
+                boosterStatus={p.booster_status}
+                subscriptionEndDate={p.subscription_end_date}
+                subscriptionStatus={p.subscription_status}
                 onContactSeller={() => { setSelectedProductId(p.id); setContactOpen(true); }}
               />
             ))}
             {!lpLoading && !landingProducts.length && !lpError && (
-              Array(8).fill().map((_, i) => (
-                <ProductCard
-                  key={`ph-${i}`}
-                  id={i + 1}
-                  imageIndex={(i % 5) + 1}
-                  rating={0}
-                  imageUrl={getProductThumb({})}
-                  title={`Product ${i + 1}`}
-                />
-              ))
+              <div className="col-span-full flex flex-col items-center justify-center py-16 px-4">
+                <div className="text-center max-w-md">
+                  <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 9h.01M15 9h.01M9 15h.01M15 15h.01" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {selectedBusinessType ? t('noProductsForBusinessType') || `No products available for ${businessTypes.find(bt => bt.code === selectedBusinessType)?.name || 'this business type'}` : t('noProductsAvailable') || 'No products available'}
+                  </h3>
+                  <p className="text-gray-500 mb-6">
+                    {selectedBusinessType 
+                      ? t('tryDifferentBusinessType') || 'Try selecting a different business type or clear the filter to see all products.'
+                      : t('checkBackLater') || 'Check back later for new products or try adjusting your search criteria.'
+                    }
+                  </p>
+                  {selectedBusinessType && (
+                    <button
+                      onClick={() => handleBusinessTypeSelect({ code: '', name: businessTypes[0].name })}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#027DDB] transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      {t('clearFilter') || 'Clear Filter'}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
           {lpError && <div className="text-sm text-red-600 mt-3">{lpError}</div>}
@@ -1883,296 +2683,440 @@ const LandingPage = () => {
                 disabled={lpLoadingMore}
                 className={`px-6 py-2 rounded-lg border font-medium transition-colors ${lpLoadingMore ? 'bg-gray-100 text-gray-400 border-gray-200' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
               >
-                {lpLoadingMore ? 'Loading…' : 'Load More'}
+                {lpLoadingMore ? t('loading') : t('loadMore')}
               </button>
             </div>
           )}
           <div className="text-center mt-8">
             <button onClick={() => navigate('/top-ranking')} className="bg-[#027DDB] text-white px-8 py-3 rounded-lg hover:bg-[#0266b3] transition-colors font-medium">
-              View Top Ranking Products
+              {t('viewTopRanking')}
             </button>
           </div>
         </section>
-      </main>
+        </main>
+      )}
 
-      {/* Newsletter */}
-      <section className="bg-gray-100 py-8">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="max-w-md">
-            <h2 className="text-xl font-semibold mb-3 text-gray-800">Subscribe to Our Newsletter</h2>
-            <div className="flex">
-              <input
-                type="email"
-                placeholder="Your Email Address"
-                className="flex-1 px-4 py-2 rounded-l-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <button className="px-6 py-2 bg-orange-500 text-white rounded-r-md hover:bg-orange-600 transition-colors font-medium">
-                Get Started
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-100 py-12">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-5 gap-8">
-            <div className="col-span-1">
-              <h3 className="font-bold text-lg mb-2 text-gray-800">ATLAS-WD</h3>
-              <p className="text-sm text-gray-600">Your best online market</p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Features</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Sourcing Guide</li>
-                <li>• Trending products</li>
-                <li>• Supplier Ranking</li>
-                <li>• Product Design</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Support</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Customer Service</li>
-                <li>• Help Center</li>
-                <li>• Submit a Dispute</li>
-                <li>• Report IPR</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Company</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Trade Assurance</li>
-                <li>• Business Identity</li>
-                <li>• Logistics Service</li>
-                <li>• Secure Payment</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Resources</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Get mobile app</li>
-                <li>• Product Monitoring</li>
-                <li>• Trade Alert</li>
-                <li>• Production Flow</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-12 pt-8 border-t border-gray-300 text-center text-sm text-gray-600">
-            <p>Copyright ©2022 ATLAS-WD. Trade Alert | All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <GlobalFooter />
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} roleLabel={roleLabel} productId={selectedProductId} />
 
       {/* Product Request Modal */}
       {prOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setPrOpen(false)} />
-          <div className="relative mt-12 w-[92%] max-w-2xl rounded-md bg-white shadow-xl border border-slate-200 max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 flex-none">
-              <h3 className="text-[18px] font-semibold text-slate-900">Post a Product Request</h3>
-              <button onClick={() => setPrOpen(false)} className="p-1 rounded hover:bg-slate-100" aria-label="Close">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-slate-500"><path d="M6.225 4.811 4.811 6.225 10.586 12l-5.775 5.775 1.414 1.414L12 13.414l5.775 5.775 1.414-1.414L13.414 12l5.775-5.775-1.414-1.414L12 10.586 6.225 4.811Z" /></svg>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPrOpen(false)} />
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Enhanced Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Post a Product Request</h3>
+                  <p className="text-blue-100 text-sm">Tell us what you're looking for and connect with suppliers</p>
+                </div>
+              </div>
+              <button onClick={() => setPrOpen(false)} className="p-2 rounded-lg hover:bg-white/20 transition-colors" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-white">
+                  <path d="M6.225 4.811 4.811 6.225 10.586 12l-5.775 5.775 1.414 1.414L12 13.414l5.775 5.775 1.414-1.414L13.414 12l5.775-5.775-1.414-1.414L12 10.586 6.225 4.811Z" />
+                </svg>
               </button>
             </div>
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-gray-50">
               {prSuccess && (
                 <div ref={successRef}>
                   <SuccessAlert message={prSuccess} onClose={() => setPrSuccess('')} />
                 </div>
               )}
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Product name</label>
-                <input
-                  value={prProductName}
-                  onChange={(e) => setPrProductName(e.target.value)}
-                  type="text"
-                  className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="What product do you need?"
-                />
-              </div>
-              {/* Category (dropdown) */}
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Category</label>
-                <select 
-                  value={prCategoryId} 
-                  onChange={(e) => {
-                    const selectedId = e.target.value;
-                    setPrCategoryId(selectedId);
-                    // Find and store the category name for display
-                    if (selectedId) {
-                      const selectedCategory = prCategories.find(c => c.id.toString() === selectedId);
-                      setPrCategoryName(selectedCategory ? selectedCategory.name : '');
-                      setPrCategoryText(''); // Clear text input when dropdown is used
-                    } else {
-                      setPrCategoryName('');
-                    }
-                  }} 
-                  className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">{prCatLoading ? 'Loading categories...' : 'Select a category'}</option>
-                  {prCategories.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                {prCatError && <p className="text-xs text-red-600 mt-1">{prCatError}</p>}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Quantity</label>
-                  <input value={prQuantity} onChange={(e) => setPrQuantity(e.target.value)} type="number" min="0" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              
+              {/* Product Information Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Product Information</h4>
                 </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+                    <input
+                      value={prProductName}
+                      onChange={(e) => setPrProductName(e.target.value)}
+                      type="text"
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                      placeholder="What product do you need?"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                    <select 
+                      value={prCategoryId} 
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        setPrCategoryId(selectedId);
+                        // Find and store the category name for display
+                        if (selectedId) {
+                          const selectedCategory = prCategories.find(c => c.id.toString() === selectedId);
+                          setPrCategoryName(selectedCategory ? selectedCategory.name : '');
+                          setPrCategoryText(''); // Clear text input when dropdown is used
+                        } else {
+                          setPrCategoryName('');
+                        }
+                      }} 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="">{prCatLoading ? 'Loading categories...' : 'Select a category'}</option>
+                      {prCategories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    {prCatError && <p className="text-xs text-red-600 mt-1">{prCatError}</p>}
+                  </div>
+                </div>
+              </div>
+              {/* Quantity & Specifications Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Quantity & Specifications</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                    <input 
+                      value={prQuantity} 
+                      onChange={(e) => setPrQuantity(e.target.value)} 
+                      type="number" 
+                      min="0" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="Enter quantity"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
+                    <select 
+                      value={prUnitType} 
+                      onChange={(e) => setPrUnitType(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="pieces">Pieces</option>
+                      <option value="boxes">Boxes</option>
+                      <option value="meters">Meters</option>
+                      <option value="others">Others</option>
+                    </select>
+                    {prUnitType === 'others' && (
+                      <input 
+                        value={prCustomUnit} 
+                        onChange={(e) => setPrCustomUnit(e.target.value)} 
+                        type="text" 
+                        className="mt-3 h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                        placeholder="Enter custom unit" 
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* Business & Requirements Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Business & Requirements</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Quantity (optional)</label>
+                    <input 
+                      value={prPurchaseQty} 
+                      onChange={(e) => setPrPurchaseQty(e.target.value)} 
+                      type="number" 
+                      min="0" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="e.g. 100" 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+                    <select 
+                      value={prBusinessType} 
+                      onChange={(e) => setPrBusinessType(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="">Select Business Type</option>
+                      <option value="ASSOCIATION">Association</option>
+                      <option value="RETAILER">Retailer</option>
+                      <option value="MANUFACTURER">Manufacturer</option>
+                      <option value="DISTRIBUTOR">Distributor</option>
+                      <option value="AGENT">Agent</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {/* Timeline & Frequency Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Timeline & Frequency</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Time of Validity</label>
+                    <select 
+                      value={prTimeValidity} 
+                      onChange={(e) => setPrTimeValidity(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="">Select Validity Period</option>
+                      <option value="1_WEEK">1 Week</option>
+                      <option value="2_WEEKS">2 Weeks</option>
+                      <option value="1_MONTH">1 Month</option>
+                      <option value="3_MONTHS">3 Months</option>
+                      <option value="6_MONTHS">6 Months</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Piece Unit</label>
+                    <select 
+                      value={prPieceUnit} 
+                      onChange={(e) => setPrPieceUnit(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="">Select Unit Type</option>
+                      <option value="UNITS">Units</option>
+                      <option value="KG">Kilograms (KG)</option>
+                      <option value="TON">Tons</option>
+                      <option value="PIECES">Pieces</option>
+                      <option value="BOXES">Boxes</option>
+                    </select>
+                  </div>
+                </div>
+                
                 <div>
-                  <label className="block text-sm text-slate-700 mb-1">Unit</label>
-                  <select value={prUnitType} onChange={(e) => setPrUnitType(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="pieces">Pieces</option>
-                    <option value="boxes">Boxes</option>
-                    <option value="meters">Meters</option>
-                    <option value="others">Others</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Buying Frequency</label>
+                  <select 
+                    value={prBuyingFrequency} 
+                    onChange={(e) => setPrBuyingFrequency(e.target.value)} 
+                    className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  >
+                    <option value="">Select Buying Frequency</option>
+                    <option value="WEEKLY">Weekly</option>
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly</option>
+                    <option value="YEARLY">Yearly</option>
+                    <option value="ONE_TIME">One Time</option>
                   </select>
-                  {prUnitType === 'others' && (
-                    <input value={prCustomUnit} onChange={(e) => setPrCustomUnit(e.target.value)} type="text" className="mt-2 h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter custom unit" />
-                  )}
                 </div>
               </div>
-              {/* Purchase Quantity (new spec) */}
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Purchase Quantity (optional)</label>
-                <input value={prPurchaseQty} onChange={(e) => setPrPurchaseQty(e.target.value)} type="number" min="0" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 100" />
-              </div>
-              {/* Business Type */}
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Business Type</label>
-                <select value={prBusinessType} onChange={(e) => setPrBusinessType(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Select</option>
-                  <option value="ASSOCIATION">ASSOCIATION</option>
-                  <option value="RETAILER">RETAILER</option>
-                  <option value="MANUFACTURER">MANUFACTURER</option>
-                  <option value="DISTRIBUTOR">DISTRIBUTOR</option>
-                  <option value="AGENT">AGENT</option>
-                </select>
-              </div>
-              {/* Enums per spec */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Time of Validity</label>
-                  <select value={prTimeValidity} onChange={(e) => setPrTimeValidity(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select</option>
-                    <option value="1_WEEK">1_WEEK</option>
-                    <option value="2_WEEKS">2_WEEKS</option>
-                    <option value="1_MONTH">1_MONTH</option>
-                    <option value="3_MONTHS">3_MONTHS</option>
-                    <option value="6_MONTHS">6_MONTHS</option>
-                  </select>
+              {/* Location Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Location</h4>
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Piece Unit</label>
-                  <select value={prPieceUnit} onChange={(e) => setPrPieceUnit(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select</option>
-                    <option value="UNITS">UNITS</option>
-                    <option value="KG">KG</option>
-                    <option value="TON">TON</option>
-                    <option value="PIECES">PIECES</option>
-                    <option value="BOXES">BOXES</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Buying Frequency</label>
-                <select value={prBuyingFrequency} onChange={(e) => setPrBuyingFrequency(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Select</option>
-                  <option value="WEEKLY">WEEKLY</option>
-                  <option value="MONTHLY">MONTHLY</option>
-                  <option value="QUARTERLY">QUARTERLY</option>
-                  <option value="YEARLY">YEARLY</option>
-                  <option value="ONE_TIME">ONE_TIME</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">Country</label>
-                <select value={prCountry} onChange={(e) => setPrCountry(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Select Country</option>
-                  <option value="Nigeria">Nigeria</option>
-                  <option value="Ghana">Ghana</option>
-                  <option value="Kenya">Kenya</option>
-                  <option value="South Africa">South Africa</option>
-                  <option value="United States">United States</option>
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="China">China</option>
-                  <option value="India">India</option>
-                  <option value="UAE">UAE</option>
-                  {/* TODO: replace with full country list */}
-                </select>
-              </div>
-              {/* City */}
-              <div>
-                <label className="block text-sm text-slate-700 mb-1">City (optional)</label>
-                <input value={prCity} onChange={(e) => setPrCity(e.target.value)} type="text" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="City" />
-              </div>
-              {/* Budget and Currency */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Budget (optional)</label>
-                  <input value={prBudget} onChange={(e) => setPrBudget(e.target.value)} type="number" min="0" step="0.01" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 5000" />
-                </div>
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Currency</label>
-                  <select value={prCurrency} onChange={(e) => setPrCurrency(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="USD">USD</option>
-                    <option value="NGN">NGN</option>
-                    <option value="GHS">GHS</option>
-                    <option value="KES">KES</option>
-                    <option value="ZAR">ZAR</option>
-                    <option value="CNY">CNY</option>
-                    <option value="INR">INR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="EUR">EUR</option>
-                  </select>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                    <select 
+                      value={prCountry} 
+                      onChange={(e) => setPrCountry(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="">Select Country</option>
+                      <option value="Nigeria">🇳🇬 Nigeria</option>
+                      <option value="Ghana">🇬🇭 Ghana</option>
+                      <option value="Kenya">🇰🇪 Kenya</option>
+                      <option value="South Africa">🇿🇦 South Africa</option>
+                      <option value="United States">🇺🇸 United States</option>
+                      <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                      <option value="China">🇨🇳 China</option>
+                      <option value="India">🇮🇳 India</option>
+                      <option value="UAE">🇦🇪 UAE</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">City (optional)</label>
+                    <input 
+                      value={prCity} 
+                      onChange={(e) => setPrCity(e.target.value)} 
+                      type="text" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="Enter city name" 
+                    />
+                  </div>
                 </div>
               </div>
-              {/* Target price and Max budget */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Target Unit Price</label>
-                  <input value={prTargetUnitPrice} onChange={(e) => setPrTargetUnitPrice(e.target.value)} type="number" min="0" step="0.01" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 2.75" />
+              {/* Budget & Pricing Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Budget & Pricing</h4>
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-700 mb-1">Max Budget</label>
-                  <input value={prMaxBudget} onChange={(e) => setPrMaxBudget(e.target.value)} type="number" min="0" step="0.01" className="w-full h-10 rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 15000" />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Budget (optional)</label>
+                    <input 
+                      value={prBudget} 
+                      onChange={(e) => setPrBudget(e.target.value)} 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="e.g. 5000" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                    <select 
+                      value={prCurrency} 
+                      onChange={(e) => setPrCurrency(e.target.value)} 
+                      className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    >
+                      <option value="NGN">₦ Nigerian Naira (NGN)</option>
+                      <option value="USD">$ US Dollar (USD)</option>
+                      <option value="GHS">₵ Ghanaian Cedi (GHS)</option>
+                      <option value="KES">KSh Kenyan Shilling (KES)</option>
+                      <option value="ZAR">R South African Rand (ZAR)</option>
+                      <option value="CNY">¥ Chinese Yuan (CNY)</option>
+                      <option value="INR">₹ Indian Rupee (INR)</option>
+                      <option value="GBP">£ British Pound (GBP)</option>
+                      <option value="EUR">€ Euro (EUR)</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Target Unit Price</label>
+                    <input 
+                      value={prTargetUnitPrice} 
+                      onChange={(e) => setPrTargetUnitPrice(e.target.value)} 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="e.g. 2.75" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Max Budget</label>
+                    <input 
+                      value={prMaxBudget} 
+                      onChange={(e) => setPrMaxBudget(e.target.value)} 
+                      type="number" 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      placeholder="e.g. 15000" 
+                    />
+                  </div>
                 </div>
               </div>
               
-              {/* Role toggles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={prIsBuyer} onChange={(e) => { const v = e.target.checked; setPrIsBuyer(v); if (v) setPrIsSupplier(false); }} />
-                  <span>I am a Buyer</span>
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={prIsSupplier} onChange={(e) => { const v = e.target.checked; setPrIsSupplier(v); if (v) setPrIsBuyer(false); }} />
-                  <span>I am a Supplier</span>
-                </label>
-              </div>
-              {/* Visibility toggles (mutually exclusive) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={prOnlyPaid}
-                    onChange={(e) => { const v = e.target.checked; setPrOnlyPaid(v); if (v) setPrAllowAll(false); }}
-                  />
-                  <span>Only paid members</span>
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={prAllowAll}
-                    onChange={(e) => { const v = e.target.checked; setPrAllowAll(v); if (v) setPrOnlyPaid(false); }}
-                  />
-                  <span>Allow all members</span>
-                </label>
+              {/* Role & Preferences Section */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Role & Preferences</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-3">Your Role</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={prIsBuyer} 
+                          onChange={(e) => { const v = e.target.checked; setPrIsBuyer(v); if (v) setPrIsSupplier(false); }} 
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">I am a Buyer</span>
+                          <p className="text-xs text-gray-500">Looking to purchase products</p>
+                        </div>
+                      </label>
+                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={prIsSupplier} 
+                          onChange={(e) => { const v = e.target.checked; setPrIsSupplier(v); if (v) setPrIsBuyer(false); }} 
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">I am a Supplier</span>
+                          <p className="text-xs text-gray-500">Offering products to sell</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-3">Visibility Preferences</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={prOnlyPaid}
+                          onChange={(e) => { const v = e.target.checked; setPrOnlyPaid(v); if (v) setPrAllowAll(false); }}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">Only paid members</span>
+                          <p className="text-xs text-gray-500">Premium members only</p>
+                        </div>
+                      </label>
+                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={prAllowAll}
+                          onChange={(e) => { const v = e.target.checked; setPrAllowAll(v); if (v) setPrOnlyPaid(false); }}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="ml-3">
+                          <span className="text-sm font-medium text-gray-900">Allow all members</span>
+                          <p className="text-xs text-gray-500">Open to all users</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-slate-700 mb-1">Details</label>
@@ -2197,11 +3141,70 @@ const LandingPage = () => {
 
 // Recursive renderer for nested categories in the mega menu
 function CategoryNode({ node, depth, onSelectCategory }) {
+  // For the root level, we want to show all root categories in columns
+  if (depth === 0) {
+    // This should render all root categories, not the children of a single root
+    // The parent component should handle passing all root categories
+    return (
+      <div className="space-y-4">
+        <div
+          className="font-bold text-lg text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
+          onClick={() => onSelectCategory?.(node.id, node.name)}
+        >
+          {node.name}
+        </div>
+        {Array.isArray(node.children) && node.children.length > 0 && (
+          <ul className="space-y-2">
+            {node.children.map((child) => (
+              <li key={child.id}>
+                <div
+                  className={`text-sm cursor-pointer transition-colors ${
+                    Array.isArray(child.children) && child.children.length > 0 
+                      ? 'text-[#027DDB] hover:text-blue-700 font-medium' 
+                      : 'text-gray-700 hover:text-[#027DDB]'
+                  }`}
+                  onClick={() => onSelectCategory?.(child.id, child.name)}
+                >
+                  {child.name}
+                </div>
+                {Array.isArray(child.children) && child.children.length > 0 && (
+                  <ul className="mt-1 ml-3 space-y-1">
+                    {child.children.slice(0, 8).map((grandchild) => (
+                      <li key={grandchild.id}>
+                        <div
+                          className="text-xs text-gray-600 hover:text-[#027DDB] cursor-pointer transition-colors"
+                          onClick={() => onSelectCategory?.(grandchild.id, grandchild.name)}
+                        >
+                          {grandchild.name}
+                        </div>
+                      </li>
+                    ))}
+                    {child.children.length > 8 && (
+                      <li>
+                        <div
+                          className="text-xs text-gray-500 hover:text-[#027DDB] cursor-pointer italic"
+                          onClick={() => onSelectCategory?.(child.id, child.name)}
+                        >
+                          +{child.children.length - 8} more...
+                        </div>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  // For deeper levels, use the original single column layout
   return (
     <div className={`mega-col depth-${depth}`}>
       <div
         className="font-semibold mb-2 cursor-pointer text-[#027DDB]"
-        onClick={() => onSelectCategory?.(node.id)}
+        onClick={() => onSelectCategory?.(node.id, node.name)}
       >
         {node.name}
       </div>
@@ -2211,7 +3214,7 @@ function CategoryNode({ node, depth, onSelectCategory }) {
             <li key={child.id}>
               <div
                 className="text-sm text-gray-700 hover:text-[#027DDB] cursor-pointer"
-                onClick={() => onSelectCategory?.(child.id)}
+                onClick={() => onSelectCategory?.(child.id, child.name)}
               >
                 {child.name}
               </div>

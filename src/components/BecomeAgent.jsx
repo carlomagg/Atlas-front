@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authStorage, submitAgentApplication } from '../services/authApi';
 import { getErrorMessage } from '../utils/errorUtils';
 import Logo from './common/Logo';
+import GlobalFooter from './common/GlobalFooter';
+import NigeriaStatesDropdown from './common/NigeriaStatesDropdown';
 
 const BecomeAgent = () => {
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ const BecomeAgent = () => {
     phoneNumber: '',
     email: '',
     address: '',
+    state: '',
     bankName: '',
     accountNumber: '',
     idType: '',
@@ -70,6 +73,7 @@ const BecomeAgent = () => {
     setIsSubmitting(true);
 
     try {
+      console.log('🔍 BecomeAgent - Form data being submitted:', formData);
       await submitAgentApplication(formData);
       setShowSuccessModal(true);
     } catch (error) {
@@ -89,6 +93,7 @@ const BecomeAgent = () => {
       phoneNumber: '',
       email: '',
       address: '',
+      state: '',
       bankName: '',
       accountNumber: '',
       idType: '',
@@ -96,6 +101,7 @@ const BecomeAgent = () => {
       idDocument: null
     });
   };
+
 
   const handleLoginRedirect = () => {
     setShowLoginModal(false);
@@ -116,8 +122,10 @@ const BecomeAgent = () => {
       {/* Simple Header Navigation */}
       <header className="w-full bg-white shadow-sm">
         <div className="mx-auto px-4 sm:px-6 py-4 max-w-7xl flex items-center justify-between flex-nowrap">
-          {/* Logo */}
-          <Logo to="/" height="h-20 md:h-24" />
+          {/* Logo - Optimized size for better layout */}
+          <div className="flex-shrink-0">
+            <Logo to="/" height="h-10 sm:h-14 md:h-20 lg:h-24" />
+          </div>
 
           {/* Page Title */}
           <div className="hidden md:block">
@@ -230,6 +238,17 @@ const BecomeAgent = () => {
                 rows="3"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+              <NigeriaStatesDropdown
+                name="state"
+                value={formData.state}
+                onChange={handleInputChange}
+                required
+                placeholder="Select your state"
               />
             </div>
 
@@ -430,71 +449,7 @@ const BecomeAgent = () => {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-gray-50 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-          {/* Newsletter Section */}
-          <div className="bg-white rounded-lg p-6 mb-8">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div className="mb-4 md:mb-0">
-                <h3 className="text-lg font-semibold text-gray-900">Subscribe to Our Newsletter</h3>
-              </div>
-              <div className="flex w-full md:w-auto">
-                <input
-                  type="email"
-                  placeholder="Your Email Address"
-                  className="flex-1 md:w-64 px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent"
-                />
-                <button className="px-6 py-2 bg-orange-500 text-white rounded-r-md hover:bg-orange-600 transition-colors">
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Links */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-4">ATLAS-WD</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-[#027DDB]">Your best online market</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Features</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-[#027DDB]">Seamless Variety</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Selling Advisor</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Smooth searching</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Value quality</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-[#027DDB]">Seamless Delivery</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Effortless Sourcing</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Seamless services</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Access broad marketplace</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-[#027DDB]">Seamless Launch</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Simple Profiles</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Seamless sourcing</a></li>
-                <li><a href="#" className="hover:text-[#027DDB]">Simple Supply</a></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="border-t border-gray-200 mt-8 pt-8 text-center">
-            <p className="text-sm text-gray-500">Copyright ©2024 Atlas-WD Team Design. All Rights Reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <GlobalFooter />
     </div>
   );
 };

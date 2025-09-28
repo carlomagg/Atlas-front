@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { submitBusinessVerification } from '../../services/authApi';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { COUNTRIES, STATES } from '../../utils/locationData';
 
 // Enums (labels shown; values posted as strings provided)
 const INDUSTRY_OPTIONS = [
@@ -25,9 +26,9 @@ const INCORPORATION_OPTIONS = [
 ];
 
 const OWNERSHIP_SELF_OPTIONS = [
-  'OWN_25_OR_MORE',
-  'OWN_LESS_THAN_25',
-  'NOT_OWNER'
+  { value: 'OWN_25_OR_MORE', label: 'YES – I own 25% or more' },
+  { value: 'OWN_LESS_THAN_25', label: 'YES – I own less than 25%' },
+  { value: 'NOT_OWNER', label: 'NO – Not an owner' }
 ];
 
 const RELATIONSHIP_OPTIONS = [
@@ -94,7 +95,22 @@ const VerifyBusiness = () => {
 
   const onChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => {
+      // Reset state when country changes
+      if (name === 'country_of_citizenship' && value !== prev.country_of_citizenship) {
+        return { ...prev, [name]: value };
+      }
+      if (name === 'country_of_residence' && value !== prev.country_of_residence) {
+        return { ...prev, [name]: value };
+      }
+      if (name === 'state' && value !== prev.state) {
+        return { ...prev, [name]: value };
+      }
+      if (name === 'applicant_state' && value !== prev.applicant_state) {
+        return { ...prev, [name]: value };
+      }
+      return { ...prev, [name]: value };
+    });
     if (error) setError('');
   };
 
@@ -282,7 +298,7 @@ const VerifyBusiness = () => {
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md text-green-800">{success}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8 dashboard-form">
           {/* Business Section */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
@@ -306,7 +322,16 @@ const VerifyBusiness = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                <input type="text" name="state" value={form.state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                {STATES['NG'] ? (
+                  <select name="state" value={form.state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required>
+                    <option value="">Select State</option>
+                    {STATES['NG'].map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" name="state" value={form.state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Local Government</label>
@@ -363,7 +388,7 @@ const VerifyBusiness = () => {
                 <select name="are_you_an_owner_of_this_business" value={form.are_you_an_owner_of_this_business} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required>
                   <option value="">Select</option>
                   {OWNERSHIP_SELF_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>{opt.replaceAll('_', ' ')}</option>
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
@@ -382,7 +407,12 @@ const VerifyBusiness = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Country of Citizenship</label>
-                <input type="text" name="country_of_citizenship" value={form.country_of_citizenship} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                <select name="country_of_citizenship" value={form.country_of_citizenship} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required>
+                  <option value="">Select Country</option>
+                  {COUNTRIES.map(country => (
+                    <option key={country.code} value={country.code}>{country.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">National ID Number</label>
@@ -390,7 +420,12 @@ const VerifyBusiness = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Country of Residence</label>
-                <input type="text" name="country_of_residence" value={form.country_of_residence} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                <select name="country_of_residence" value={form.country_of_residence} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required>
+                  <option value="">Select Country</option>
+                  {COUNTRIES.map(country => (
+                    <option key={country.code} value={country.code}>{country.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Home Address</label>
@@ -398,7 +433,16 @@ const VerifyBusiness = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                <input type="text" name="applicant_state" value={form.applicant_state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                {STATES['NG'] ? (
+                  <select name="applicant_state" value={form.applicant_state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required>
+                    <option value="">Select State</option>
+                    {STATES['NG'].map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" name="applicant_state" value={form.applicant_state} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Local Government</label>
@@ -473,7 +517,12 @@ const VerifyBusiness = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Country of Citizenship</label>
-                      <input type="text" value={owner.country_of_citizenship} onChange={(e) => onOwnerChange(idx, 'country_of_citizenship', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} />
+                      <select value={owner.country_of_citizenship} onChange={(e) => onOwnerChange(idx, 'country_of_citizenship', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified}>
+                        <option value="">Select Country</option>
+                        {COUNTRIES.map(country => (
+                          <option key={country.code} value={country.code}>{country.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">National ID Number</label>
@@ -481,7 +530,12 @@ const VerifyBusiness = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Country of Residence</label>
-                      <input type="text" value={owner.country_of_residence} onChange={(e) => onOwnerChange(idx, 'country_of_residence', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} />
+                      <select value={owner.country_of_residence} onChange={(e) => onOwnerChange(idx, 'country_of_residence', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified}>
+                        <option value="">Select Country</option>
+                        {COUNTRIES.map(country => (
+                          <option key={country.code} value={country.code}>{country.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Home Address</label>
@@ -489,7 +543,16 @@ const VerifyBusiness = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                      <input type="text" value={owner.state} onChange={(e) => onOwnerChange(idx, 'state', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} />
+                      {STATES['NG'] ? (
+                        <select value={owner.state} onChange={(e) => onOwnerChange(idx, 'state', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified}>
+                          <option value="">Select State</option>
+                          {STATES['NG'].map(state => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input type="text" value={owner.state} onChange={(e) => onOwnerChange(idx, 'state', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} />
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Relationship to Company</label>

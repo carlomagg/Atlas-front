@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { login } from '../../services/authApi';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../common/Logo';
 
 const Login = ({ onLogin, onForgotPassword, onSignUp }) => {
   const { login: authLogin } = useAuth();
   const [formData, setFormData] = useState({
-    email: 'Joshua@gmail.com',
+    email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -99,12 +100,12 @@ const Login = ({ onLogin, onForgotPassword, onSignUp }) => {
   };
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen flex flex-col lg:flex-row lg:items-center lg:justify-center p-4">
-      {/* Logo Section - Top on mobile, Top Left on desktop */}
-      <div className="lg:absolute lg:top-8 lg:left-8 mb-8 lg:mb-0">
-        <div className="flex items-center justify-center lg:justify-start">
-          <img src="/images/logo.svg" alt="Atlas-WD" className="h-12 lg:h-16 w-auto mr-3 lg:mr-4" />
-          <div className="text-xs lg:text-sm text-gray-600 text-center lg:text-left">
+    <div className="w-full bg-gray-50 min-h-screen flex flex-col lg:flex-row lg:items-center lg:justify-center p-4 pt-24 sm:pt-28 lg:pt-32">
+      {/* Top Logo Section - Responsive */}
+      <div className="absolute top-0 left-0 p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center">
+          <Logo height="h-12 sm:h-14 lg:h-16" to="/" />
+          <div className="ml-3 sm:ml-4 text-xs sm:text-sm text-gray-600">
             <div>Maximize Growth, Minimize</div>
             <div>Costs. Find Your Customers</div>
             <div>Effortlessly with ATLAS-WD</div>

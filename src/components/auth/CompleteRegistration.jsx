@@ -2,8 +2,9 @@ import { useState } from 'react';
 import AuthModal from './AuthModal';
 import { completeRegistration, TITLE_OPTIONS, BUSINESS_TYPE_OPTIONS, COUNTRY_OPTIONS } from '../../services/authApi';
 import { useAuth } from '../../context/AuthContext';
+import NigeriaStatesDropdown from '../common/NigeriaStatesDropdown';
 
-const CompleteRegistration = ({ email, onComplete, onBack }) => {
+const CompleteRegistration = ({ email, referralCode, onComplete, onBack }) => {
   // We no longer auto-login after registration; keep hook if needed later
   // const { login: authLogin } = useAuth();
   // Track current step in the registration flow (2 = information, 3 = complete)
@@ -20,7 +21,7 @@ const CompleteRegistration = ({ email, onComplete, onBack }) => {
     companyName: '',
     phoneNumber: '',
     businessType: '',
-    referralCode: ''
+    referralCode: referralCode || ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -198,6 +199,25 @@ const CompleteRegistration = ({ email, onComplete, onBack }) => {
         <div className="mb-6 lg:mb-8">
           {renderStepIndicator()}
           {renderStepLabels()}
+          
+          {/* Referral Code Indicator */}
+          {referralCode && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  🎉 You're registering with referral code: <span className="font-mono font-bold">{referralCode}</span>
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  You'll be connected to your referring agent after registration!
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {isSuccess ? (
@@ -329,12 +349,12 @@ const CompleteRegistration = ({ email, onComplete, onBack }) => {
             {/* Optional State */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">State <span className="text-gray-500">(Optional)</span></label>
-              <input
-                type="text"
+              <NigeriaStatesDropdown
+                name="state"
                 value={formData.state}
                 onChange={(e) => handleInputChange('state', e.target.value)}
-                placeholder="e.g., Lagos"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                placeholder="Select your state (optional)"
+                className="text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -398,17 +418,31 @@ const CompleteRegistration = ({ email, onComplete, onBack }) => {
               {errors.businessType && <p className="text-red-500 text-xs mt-1">{errors.businessType}</p>}
             </div>
 
-            {/* Optional Referral Code */}
+            {/* Referral Code */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Referral Code <span className="text-gray-500">(Optional)</span></label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Referral Code 
+                {!referralCode && <span className="text-gray-500">(Optional)</span>}
+                {referralCode && <span className="text-green-600">(From Link)</span>}
+              </label>
               <input
                 type="text"
                 value={formData.referralCode}
-                onChange={(e) => handleInputChange('referralCode', e.target.value.trim())}
-                placeholder="Enter referral code if you have one"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                onChange={(e) => !referralCode && handleInputChange('referralCode', e.target.value.trim())}
+                placeholder={referralCode ? "Referral code from your link" : "Enter referral code if you have one"}
+                readOnly={!!referralCode}
+                className={`w-full px-3 py-2 text-sm border rounded-md outline-none ${
+                  referralCode 
+                    ? 'border-green-300 bg-green-50 text-green-800 font-mono font-semibold cursor-not-allowed' 
+                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                }`}
               />
-              <p className="text-[11px] text-gray-500 mt-1">If provided, it must belong to an agent whose link is paid, active, and not expired.</p>
+              <p className="text-[11px] text-gray-500 mt-1">
+                {referralCode 
+                  ? "This referral code was automatically captured from your registration link."
+                  : "If provided, it must belong to an agent whose link is paid, active, and not expired."
+                }
+              </p>
             </div>
 
             {errors.general && (

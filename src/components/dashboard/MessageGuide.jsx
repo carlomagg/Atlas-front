@@ -37,7 +37,7 @@ const MessageGuide = () => {
     { key: 'flagged', label: 'Flagged' },
     { key: 'reported', label: 'Reported' },
     { key: 'not_replied', label: 'Not Replied' },
-    { key: 'contact', label: 'Contact Seller Requests' },
+    { key: 'contact', label: 'Product inquiry' },
     { key: 'product', label: 'Product Requests' },
     { key: 'compose', label: 'Compose' },
   ]), []);
@@ -89,12 +89,11 @@ const MessageGuide = () => {
       if (!sid) continue;
       // Skip owner in list to avoid selecting self
       if (ownerId && String(sid) === String(ownerId)) continue;
-      const labelParts = [];
-      if (m?.sender_name) labelParts.push(m.sender_name);
-      if (m?.sender_business_name) labelParts.push(m.sender_business_name);
-      const labelBase = labelParts.filter(Boolean).join(' • ');
-      const email = m?.sender_email;
-      const label = labelBase || email || `User #${sid}`;
+      // Simplified participant display logic - backend now sends correct fields
+      const label = m?.sender_business_name?.trim() || 
+                   m?.sender_name?.trim() || 
+                   m?.sender_email || 
+                   `User #${sid}`;
       if (!map.has(String(sid))) map.set(String(sid), { id: String(sid), label });
     }
     return Array.from(map.values());
@@ -579,7 +578,7 @@ const MessageGuide = () => {
     <div className="p-4 md:p-6">
       <h1 className="text-xl font-semibold text-gray-900 mb-4">Message Guide</h1>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto whitespace-nowrap">
+      <div className="flex gap-2 mb-4 overflow-x-auto whitespace-nowrap lg:hidden">
         {tabs.map(t => {
           let badge = null;
           if (stats) {
@@ -639,81 +638,165 @@ const MessageGuide = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1 border rounded-lg bg-white">
-          <div className="p-3 border-b bg-gray-50 rounded-t-lg flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">{active === 'inbox' ? 'Inbox' : active === 'sent' ? 'Sent' : active === 'flagged' ? 'Flagged' : active === 'reported' ? 'Reported' : active === 'not_replied' ? 'Not Replied' : active === 'contact' ? 'Contact Seller Requests' : active === 'product' ? 'Product Requests' : 'Compose'}</span>
+      <div className="grid grid-cols-1 xl:grid-cols-8 gap-4">
+        {/* Sidebar (desktop only) */}
+        <div className="hidden xl:block xl:col-span-2">
+          <div className="bg-white border rounded-lg">
+            <div className="px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+              <span className="text-sm font-semibold text-gray-700">Message Navigation</span>
+            </div>
+            <div className="p-3 space-y-6">
+              {/* Inquiries group */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Inquiries</div>
+                <div className="space-y-1">
+                  {['inbox','sent','flagged','reported','not_replied'].map((key) => {
+                    const t = tabs.find(x => x.key === key);
+                    let badge = null;
+                    if (stats) {
+                      if (t?.key === 'inbox' && typeof stats.unread_count === 'number' && stats.unread_count > 0) badge = stats.unread_count;
+                      if (t?.key === 'flagged' && typeof stats.flagged_count === 'number' && stats.flagged_count > 0) badge = stats.flagged_count;
+                      if (t?.key === 'reported' && typeof stats.reported_count === 'number' && stats.reported_count > 0) badge = stats.reported_count;
+                      if (t?.key === 'not_replied' && typeof stats.not_replied_count === 'number' && stats.not_replied_count > 0) badge = stats.not_replied_count;
+                    }
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActive(key)}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
+                          active === key ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{t?.label || key}</span>
+                        {badge ? (
+                          <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full min-w-[20px] text-center">{badge}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Sourcing Requests group */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Sourcing Requests</div>
+                <div className="space-y-1">
+                  {['contact','product'].map((key) => {
+                    const t = tabs.find(x => x.key === key);
+                    let badge = null;
+                    if (key === 'contact' && requestCounts.contact > 0) badge = requestCounts.contact;
+                    if (key === 'product' && requestCounts.product > 0) badge = requestCounts.product;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActive(key)}
+                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
+                          active === key ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{t?.label || key}</span>
+                        {badge ? (
+                          <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full min-w-[20px] text-center">{badge}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Compose entry */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Compose</div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setActive('compose')}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                      active === 'compose' ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {tabs.find(x => x.key === 'compose')?.label || 'Compose'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="p-3 max-h-[60vh] overflow-auto">
-            {active !== 'compose' ? (
-              <>
-                {loading && <div className="text-sm text-gray-500">Loading...</div>}
-                {error && <div className="text-sm text-red-600">{error}</div>}
-                {!loading && !items.length && <div className="text-sm text-gray-500">No items</div>}
-                {active === 'contact' ? (
-                  <div className="space-y-2">
-                    {/* Header (hidden on small screens) */}
-                    <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-gray-500 hidden md:grid md:grid-cols-12 md:gap-2">
-                      <div className="col-span-6">Product</div>
-                      <div className="col-span-3">Sender</div>
-                      <div className="col-span-1">Qty</div>
-                      <div className="col-span-1">Unit</div>
-                      <div className="col-span-1 text-right">Created</div>
-                    </div>
-                    <ul key={refreshTick} className="space-y-2">
-                      {items.map((it) => {
-                        const productName = it.product?.title || it.product_name || it.product_title || productTitles[it.product] || (it.title || it.name) || (it.id ? `Contact Request #${it.id}` : 'Untitled');
-                        const qty = (it.quantity !== undefined && it.quantity !== null) ? it.quantity : '';
-                        const unit = it.unit_type === 'others' ? (it.custom_unit || 'others') : (it.unit_type || '');
-                        const preview = it.sourcing_details || it.details || it.body || it.preview || '';
-                        const created = it.created_at ? new Date(it.created_at).toLocaleDateString() : '';
-                        const sd = it.sender_details || {};
-                        const senderName = [sd.first_name, sd.last_name].filter(Boolean).join(' ').trim();
-                        const senderDisplay = senderName || sd.email || sd.atlas_id || (it.sender ? `User #${it.sender}` : '');
-                        return (
-                          <li key={it.id}>
-                            <button onClick={() => openItem(it)} className={`w-full text-left p-2 rounded border hover:bg-gray-50 ${selected?.id === it.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
-                              {/* Desktop layout */}
-                              <div className="hidden md:grid grid-cols-12 gap-2 items-center">
-                                <div className="col-span-6 min-w-0">
-                                  <div className="text-sm font-medium text-gray-800 truncate">{productName}</div>
-                                  {preview ? (
-                                    <div className="text-xs text-gray-500 truncate">{preview}</div>
-                                  ) : null}
-                                </div>
-                                <div className="col-span-3 min-w-0">
-                                  <div className="text-xs text-gray-800 truncate">{senderDisplay}</div>
-                                </div>
-                                <div className="col-span-1">
-                                  <div className="text-xs text-gray-800">{qty}</div>
-                                </div>
-                                <div className="col-span-1">
-                                  <div className="text-xs text-gray-800 truncate">{unit}</div>
-                                </div>
-                                <div className="col-span-1 text-right">
-                                  <div className="text-[11px] text-gray-500">{created}</div>
-                                </div>
-                              </div>
-                              {/* Mobile layout */}
-                              <div className="md:hidden space-y-1">
-                                <div className="text-sm font-medium text-gray-800 break-words">{productName}</div>
-                                {preview ? (
-                                  <div className="text-xs text-gray-500 break-words overflow-hidden max-h-10">{preview}</div>
-                                ) : null}
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-700">
-                                  {senderDisplay ? <span className="truncate max-w-[60%]">{senderDisplay}</span> : null}
-                                  {(qty || unit) ? <span className="text-gray-400">•</span> : null}
-                                  {(qty || unit) ? <span>{qty} {unit}</span> : null}
-                                  {created ? <span className="ml-auto text-[11px] text-gray-500">{created}</span> : null}
-                                </div>
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : (
+        </div>
+
+        {/* Main area wraps existing list + details */}
+        <div className="xl:col-span-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="lg:col-span-2 border rounded-lg bg-white">
+              <div className="p-3 border-b bg-gray-50 rounded-t-lg flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">{active === 'inbox' ? 'Inbox' : active === 'sent' ? 'Sent' : active === 'flagged' ? 'Flagged' : active === 'reported' ? 'Reported' : active === 'not_replied' ? 'Not Replied' : active === 'contact' ? 'Contact Seller Requests' : active === 'product' ? 'Product Requests' : 'Compose'}</span>
+              </div>
+              <div className="p-3 max-h-[60vh] overflow-auto">
+                {active !== 'compose' ? (
+                  <>
+                    {loading && <div className="text-sm text-gray-500">Loading...</div>}
+                    {error && <div className="text-sm text-red-600">{error}</div>}
+                    {!loading && !items.length && <div className="text-sm text-gray-500">No items</div>}
+                    {active === 'contact' ? (
+                      <div className="space-y-2">
+                        {/* Header (hidden on small screens) */}
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-gray-500 hidden md:grid md:grid-cols-12 md:gap-2">
+                          <div className="col-span-6">Product</div>
+                          <div className="col-span-3">Sender</div>
+                          <div className="col-span-1">Qty</div>
+                          <div className="col-span-1">Unit</div>
+                          <div className="col-span-1 text-right">Created</div>
+                        </div>
+                        <ul key={refreshTick} className="space-y-2">
+                          {items.map((it) => {
+                            const productName = it.product?.title || it.product_name || it.product_title || productTitles[it.product] || (it.title || it.name) || (it.id ? `Contact Request #${it.id}` : 'Untitled');
+                            const qty = (it.quantity !== undefined && it.quantity !== null) ? it.quantity : '';
+                            const unit = it.unit_type === 'others' ? (it.custom_unit || 'others') : (it.unit_type || '');
+                            const preview = it.sourcing_details || it.details || it.body || it.preview || '';
+                            const created = it.created_at ? new Date(it.created_at).toLocaleDateString() : '';
+                            const sd = it.sender_details || {};
+                            const senderName = [sd.first_name, sd.last_name].filter(Boolean).join(' ').trim();
+                            const senderDisplay = senderName || sd.email || sd.atlas_id || (it.sender ? `User #${it.sender}` : '');
+                            return (
+                              <li key={it.id}>
+                                <button onClick={() => openItem(it)} className={`w-full text-left p-2 rounded border hover:bg-gray-50 ${selected?.id === it.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                                  {/* Desktop layout */}
+                                  <div className="hidden md:grid grid-cols-12 gap-2 items-center">
+                                    <div className="col-span-6 min-w-0">
+                                      <div className="text-sm font-medium text-gray-800 truncate">{productName}</div>
+                                      {preview ? (
+                                        <div className="text-xs text-gray-500 truncate">{preview}</div>
+                                      ) : null}
+                                    </div>
+                                    <div className="col-span-3 min-w-0">
+                                      <div className="text-xs text-gray-800 truncate">{senderDisplay}</div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <div className="text-xs text-gray-800">{qty}</div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <div className="text-xs text-gray-800 truncate">{unit}</div>
+                                    </div>
+                                    <div className="col-span-1 text-right">
+                                      <div className="text-[11px] text-gray-500">{created}</div>
+                                    </div>
+                                  </div>
+                                  {/* Mobile layout */}
+                                  <div className="md:hidden space-y-1">
+                                    <div className="text-sm font-medium text-gray-800 break-words">{productName}</div>
+                                    {preview ? (
+                                      <div className="text-xs text-gray-500 break-words overflow-hidden max-h-10">{preview}</div>
+                                    ) : null}
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-700">
+                                      {senderDisplay ? <span className="truncate max-w-[60%]">{senderDisplay}</span> : null}
+                                      {(qty || unit) ? <span className="text-gray-400">•</span> : null}
+                                      {(qty || unit) ? <span>{qty} {unit}</span> : null}
+                                      {created ? <span className="ml-auto text-[11px] text-gray-500">{created}</span> : null}
+                                    </div>
+                                  </div>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : (
                   <ul key={refreshTick} className="space-y-2">
                     {items.map((it) => (
                       <li key={it.id}>
@@ -733,11 +816,11 @@ const MessageGuide = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2 border rounded-lg bg-white min-h-[50vh]">
+        <div className="lg:col-span-3 border rounded-lg bg-white min-h-[50vh]">
           <div className="p-3 border-b bg-gray-50 rounded-t-lg">
             <span className="text-sm font-medium text-gray-700">{active === 'compose' ? 'Compose New Message' : 'Details'}</span>
           </div>
-          <div className="p-4">
+          <div className="p-4 max-w-none overflow-x-auto">
             {banner.message && (
               banner.type === 'success' ? (
                 <SuccessAlert message={banner.message} onClose={() => setBanner({ type: '', message: '' })} />
@@ -906,7 +989,7 @@ const MessageGuide = () => {
                       const isImage = typeof att === 'string' && (isDataUrl ? att.startsWith('data:image') : /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.bmp|\.svg)(\?.*)?$/i.test(att));
                       return (
                         <div key={m.id} className="border rounded p-2">
-                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">{m.body}</div>
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words max-w-full overflow-wrap-anywhere">{m.body}</div>
                           {att && (
                             <div className="mt-2">
                               {isImage ? (
@@ -930,19 +1013,41 @@ const MessageGuide = () => {
                   <div className="space-y-3">
                     <div className="text-sm font-medium text-gray-700">Replies ({selected.replies.length})</div>
                     {selected.replies.map((m) => {
+                      // Backend has been fixed - now properly sends sender_business_name and sender_name
+
                       const att = m?.attachment_url || m?.attachment_link || m?.attachment || m?.attachment_base64 || m?.attachment_file?.url;
                       const isDataUrl = typeof att === 'string' && att.startsWith('data:');
                       const isImage = typeof att === 'string' && (isDataUrl ? att.startsWith('data:image') : /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.bmp|\.svg)(\?.*)?$/i.test(att));
-                      // Sender display
-                      const senderName = m?.sender_name || [m?.sender_first_name, m?.sender_last_name].filter(Boolean).join(' ').trim();
-                      const senderDisplay = senderName || m?.sender_business_name || m?.sender_email || (m?.sender_id ? `User #${m.sender_id}` : 'Sender');
+                      
+                      // Optimized sender display logic - backend now sends correct fields
+                      const getReplyDisplayName = (reply) => {
+                        // Primary: Use business/company name (matches admin display)
+                        if (reply?.sender_business_name && reply.sender_business_name.trim()) {
+                          return reply.sender_business_name.trim();
+                        }
+                        
+                        // Secondary: Use full name
+                        if (reply?.sender_name && reply.sender_name.trim()) {
+                          return reply.sender_name.trim();
+                        }
+                        
+                        // Fallback: Use email
+                        if (reply?.sender_email && reply.sender_email.trim()) {
+                          return reply.sender_email.trim();
+                        }
+                        
+                        // Final fallback
+                        return `User #${reply?.sender_id || reply?.sender || 'Unknown'}`;
+                      };
+                      
+                      const senderDisplay = getReplyDisplayName(m);
                       return (
                         <div key={m.id || m.pk || `${m.sender_id}-${m.created_at}`} className="border rounded p-2">
                           <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                             <span className="font-medium text-gray-700 truncate">{senderDisplay}</span>
                             <span>{new Date(m.created_at || m.timestamp || Date.now()).toLocaleString()}</span>
                           </div>
-                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">{m.message || m.body || ''}</div>
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words max-w-full overflow-wrap-anywhere">{m.message || m.body || ''}</div>
                           {att && (
                             <div className="mt-2">
                               {isImage ? (
@@ -964,41 +1069,47 @@ const MessageGuide = () => {
                 {active === 'contact' && selected && (
                   <div className="border rounded p-3 bg-white">
                     <div className="text-sm font-medium text-gray-700 mb-2">Request Details</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Product</div>
-                        <div className="text-gray-800 break-words">{productTitles[selected.product] || selected.product?.title || selected.product_name || selected.product_title || (selected.product ? `#${selected.product}` : '')}</div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Quantity</div>
-                        <div className="text-gray-800 break-words">{selected.quantity ?? ''}</div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Unit type</div>
-                        <div className="text-gray-800 break-words">{selected.unit_type === 'others' ? (selected.custom_unit || 'others') : (selected.unit_type || '')}</div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Created</div>
-                        <div className="text-gray-800 break-words">{selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}</div>
-                      </div>
-                      {/* Sender section */}
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Sender</div>
-                        <div className="text-gray-800 break-words">
-                          {(() => {
-                            const sd = selected.sender_details || {};
-                            const name = [sd.first_name, sd.last_name].filter(Boolean).join(' ').trim();
-                            return name || sd.email || sd.atlas_id || (selected.sender ? `User #${selected.sender}` : '');
-                          })()}
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Product</div>
+                          <div className="text-gray-800 break-words">{productTitles[selected.product] || selected.product?.title || selected.product_name || selected.product_title || (selected.product ? `#${selected.product}` : '')}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</div>
+                          <div className="text-gray-800 break-words">{selected.quantity ?? ''}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Type</div>
+                          <div className="text-gray-800 break-words">{selected.unit_type === 'others' ? (selected.custom_unit || 'others') : (selected.unit_type || '')}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Created</div>
+                          <div className="text-gray-800 break-words">{selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}</div>
                         </div>
                       </div>
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Sender Email</div>
-                        <div className="text-gray-800 break-words">{selected.sender_details?.email || ''}</div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="w-36 shrink-0 text-gray-500">Sender Atlas ID</div>
-                        <div className="text-gray-800 break-words">{selected.sender_details?.atlas_id || ''}</div>
+                      <div className="border-t pt-3">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Sender Information</div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-gray-500">Name</div>
+                            <div className="text-gray-800 break-words">
+                              {(() => {
+                                const sd = selected.sender_details || {};
+                                const name = [sd.first_name, sd.last_name].filter(Boolean).join(' ').trim();
+                                return name || sd.email || sd.atlas_id || (selected.sender ? `User #${selected.sender}` : '');
+                              })()} 
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium text-gray-500">Email</div>
+                            <div className="text-gray-800 break-words">{selected.sender_details?.email || ''}</div>
+                          </div>
+                          <div className="space-y-1 lg:col-span-2">
+                            <div className="text-xs font-medium text-gray-500">Atlas ID</div>
+                            <div className="text-gray-800 break-words">{selected.sender_details?.atlas_id || ''}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1006,7 +1117,7 @@ const MessageGuide = () => {
 
                 {/* Base body/details */}
                 {(selected.body || selected.details || selected.sourcing_details) && (
-                  <div className="border rounded p-3 bg-gray-50 text-sm text-gray-800 whitespace-pre-wrap">
+                  <div className="border rounded p-3 bg-gray-50 text-sm text-gray-800 whitespace-pre-wrap break-words max-w-full overflow-wrap-anywhere">
                     {selected.body || selected.details || selected.sourcing_details}
                   </div>
                 )}
@@ -1047,10 +1158,10 @@ const MessageGuide = () => {
                     return (
                       <div className="border rounded p-3 bg-white">
                         <div className="text-sm font-medium text-gray-700 mb-2">Request Details</div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                           {clean.map((r, i) => (
-                            <div key={i} className="flex items-start">
-                              <div className="w-40 shrink-0 text-gray-500">{r.label}</div>
+                            <div key={i} className={`space-y-1 ${r.label === 'Details' ? 'lg:col-span-2' : ''}`}>
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">{r.label}</div>
                               <div className="text-gray-800 break-words">{String(r.value)}</div>
                             </div>
                           ))}
@@ -1100,7 +1211,7 @@ const MessageGuide = () => {
                   {active === 'product' && (
                     <p className="text-xs text-gray-500 mb-2">Replies are private and will appear in your Inbox/Sent. They are not shown inline here.</p>
                   )}
-                  <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={3} className="w-full border rounded p-2 text-sm" placeholder="Type your message..." />
+                  <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={4} className="w-full border rounded p-3 text-sm resize-y min-h-[100px]" placeholder="Type your message..." />
                   <div className="flex items-center justify-between mt-2">
                     <input type="file" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} className="text-xs" />
                     <button onClick={onSendReply} disabled={sending || !replyBody.trim() || (active === 'product' && isOwner && !recipientId)} className={`px-3 py-2 text-sm rounded-md text-white ${sending || !replyBody.trim() || (active === 'product' && isOwner && !recipientId) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{sending ? 'Sending...' : 'Send Reply'}</button>
@@ -1108,6 +1219,8 @@ const MessageGuide = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </div>

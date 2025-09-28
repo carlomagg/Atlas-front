@@ -33,6 +33,15 @@ const Sidebar = ({ isOpen, onClose, className = '', isMobile = false }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h2M7 7h10M7 11h6m-6 4h6" />
             </svg>
           )
+        },
+        {
+          name: 'Company Subsidiaries',
+          href: '/dashboard/contact-info/subsidiaries',
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          )
         }
       ]
     },
@@ -63,38 +72,48 @@ const Sidebar = ({ isOpen, onClose, className = '', isMobile = false }) => {
             </svg>
           )
         },
-        // Removed: Product Request Information
-      ]
-    },
-    {
-      name: 'Quotation Builder',
-      href: '/dashboard/quotation-builder',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      subItems: [
         {
-          name: 'Add Auto Quotation',
-          href: '/dashboard/quotation-builder/add',
+          name: 'Manage Group Products',
+          href: '/dashboard/product-info/manage-groups',
           icon: (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
           )
         },
-        {
-          name: 'Manage auto quotation',
-          href: '/dashboard/quotation-builder/manage',
-          icon: (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          )
-        }
+        // Removed: Product Request Information
       ]
     },
+    // Temporarily hidden - Quotation Builder section
+    // {
+    //   name: 'Quotation Builder',
+    //   href: '/dashboard/quotation-builder',
+    //   icon: (
+    //     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    //     </svg>
+    //   ),
+    //   subItems: [
+    //     {
+    //       name: 'Add Auto Quotation',
+    //       href: '/dashboard/quotation-builder/add',
+    //       icon: (
+    //         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    //         </svg>
+    //       )
+    //     },
+    //     {
+    //       name: 'Manage auto quotation',
+    //       href: '/dashboard/quotation-builder/manage',
+    //       icon: (
+    //         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    //         </svg>
+    //       )
+    //     }
+    //   ]
+    // },
     {
       name: 'Manage Privacy Information',
       href: '/dashboard/privacy-info',

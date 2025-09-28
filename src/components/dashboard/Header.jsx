@@ -76,10 +76,12 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 justify-between items-center flex-nowrap">
-          {/* Logo */}
-          <div className="flex items-center space-x-4 flex-nowrap">
-            <Logo to="/" height="h-10 md:h-12" />
+        <div className="flex h-20 justify-between items-center flex-nowrap">
+          {/* Logo - Increased size with expanded container */}
+          <div className="flex items-center space-x-4 flex-nowrap min-w-0">
+            <div className="flex-shrink-0">
+              <Logo to="/" height="h-14 md:h-16 lg:h-20" />
+            </div>
 
             {/* Back to Site Button */}
             <Link

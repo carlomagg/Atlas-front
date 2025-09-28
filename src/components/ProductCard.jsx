@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useMediaLightbox } from './common/MediaLightboxProvider.jsx';
+import SubscriptionBadge from './common/SubscriptionBadge.jsx';
+import DailyBoosterBadge from './common/DailyBoosterBadge.jsx';
 
-const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller }) => {
+const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller, subscriptionBadge, dailyBoosterBadge, isBoosted, boosterEndDate, boosterStatus, subscriptionEndDate, subscriptionStatus }) => {
   const { open } = useMediaLightbox();
   const Wrapper = ({ children }) => (
-    id ? <Link to={`/product/${id}`}>{children}</Link> : <div>{children}</div>
+    id ? <Link to={`/product/${id}`} target="_blank" rel="noopener noreferrer">{children}</Link> : <div>{children}</div>
   );
   return (
     <Wrapper>
@@ -21,6 +23,23 @@ const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller 
           )}
         </div>
 
+        {/* Badge Overlays */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {subscriptionBadge && (
+            <SubscriptionBadge 
+              subscriptionBadge={subscriptionBadge}
+              subscriptionEndDate={subscriptionEndDate}
+              subscriptionStatus={subscriptionStatus}
+            />
+          )}
+          {(dailyBoosterBadge || isBoosted) && (
+            <DailyBoosterBadge 
+              dailyBoosterBadge={dailyBoosterBadge || (isBoosted ? 'boosted' : null)}
+              boosterEndDate={boosterEndDate}
+              boosterStatus={boosterStatus}
+            />
+          )}
+        </div>
 
         {/* Action Icons Overlay */}
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -60,7 +79,7 @@ const ProductCard = ({ id, imageIndex, imageUrl, title, rating, onContactSeller 
       </div>
 
       <div className="p-4 text-center flex-1 flex flex-col justify-between">
-        <h3 className="font-medium text-gray-800 mb-2 line-clamp-2">{title}</h3>
+        <h3 className="font-bold text-lg sm:text-xl text-gray-800 mb-2 line-clamp-2">{title}</h3>
         <div className="flex items-center justify-center">
           <div className="flex text-yellow-400">
             {[...Array(5)].map((_, i) => (

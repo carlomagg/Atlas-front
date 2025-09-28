@@ -2,78 +2,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createProductWithMedia, buildCreateWithMediaPayload, listCategories, createBrochure, listBrochures } from "../../../services/productApi";
+import { getMySubsidiaries } from "../../../services/subsidiaryApi";
+import { uploadRichTextImage } from "../../../services/imageUploadApi";
+import NestedCategorySelector from '../../common/NestedCategorySelector';
+import RichTextEditor from '../../common/RichTextEditor';
 
-/* Lightweight Rich Text Editor (contentEditable + execCommand) */
-function RichTextEditor({ value = "", onChange, id }) {
-  const editorRef = useRef();
-  const [showPreview, setShowPreview] = useState(false);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || "";
-    }
-  }, [value]);
-
-  const exec = (cmd, arg = null) => {
-    document.execCommand(cmd, false, arg);
-    onChange && onChange(editorRef.current.innerHTML);
-    editorRef.current.focus();
-  };
-
-  // Shared LTR props for text inputs and textareas
-  const ltrProps = {
-    dir: 'ltr',
-    style: { direction: 'ltr', unicodeBidi: 'plaintext', textAlign: 'left' }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="bg-gray-50 border rounded p-2 flex flex-wrap gap-2">
-        <button type="button" onClick={() => exec("bold")} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">B</button>
-        <button type="button" onClick={() => exec("italic")} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">I</button>
-        <button type="button" onClick={() => exec("underline")} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">U</button>
-        <button type="button" onClick={() => exec("insertUnorderedList")} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">• List</button>
-        <button type="button" onClick={() => exec("insertOrderedList")} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">1. List</button>
-        <button type="button" onClick={() => {
-          const url = prompt("Enter URL");
-          if (url) exec("createLink", url);
-        }} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">Link</button>
-
-        <button type="button" onClick={() => { exec("removeFormat"); }} className="px-2 py-1 text-sm bg-white border rounded hover:bg-gray-100">Clear</button>
-
-        <div className="ml-auto">
-          <button type="button" onClick={() => setShowPreview(true)} className="text-xs bg-blue-600 text-white px-3 py-1 rounded">View Sample</button>
-        </div>
-      </div>
-
-      <div
-        ref={editorRef}
-        id={id}
-        className="min-h-[110px] border rounded p-3 focus:outline-none"
-        dir="ltr"
-        style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: 'left' }}
-        contentEditable
-        onInput={() => onChange && onChange(editorRef.current.innerHTML)}
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
-
-      {showPreview && (
-        <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
-          <div className="bg-white rounded shadow-lg max-w-3xl w-full p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Sample Preview</h3>
-              <button className="text-sm text-gray-600" onClick={() => setShowPreview(false)}>Close</button>
-            </div>
-            <div className="prose max-h-[60vh] overflow-auto" dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML || "" }} />
-            <div className="mt-4 text-right">
-              <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => setShowPreview(false)}>Done</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Rich text editor image upload handler
+const handleRichTextImageUpload = async (file, context = {}) => {
+  try {
+    const imageUrl = await uploadRichTextImage(file, {
+      context: 'product_form',
+      ...context
+    });
+    return imageUrl;
+  } catch (error) {
+    console.error('Rich text image upload failed:', error);
+    throw error;
+  }
+};
 
 /* Image preview helper */
 function ImageThumb({ file, onRemove }) {
@@ -98,6 +44,7 @@ export default function ProductForm() {
   const videoInputRef = useRef(null);
   const [form, setForm] = useState({
     category: "",
+    subsidiary: "", // NEW: Subsidiary selection
     title: "",
     type: "",
     keywords: "",
@@ -122,28 +69,12 @@ export default function ProductForm() {
   const [uiAlert, setUiAlert] = useState({ type: null, message: '' });
   const [submitting, setSubmitting] = useState(false);
 
-  // Categories state
-  const [categories, setCategories] = useState([]);
-  const [catLoading, setCatLoading] = useState(false);
-  const [catError, setCatError] = useState("");
-
-  useEffect(() => {
-    const loadCats = async () => {
-      setCatLoading(true); setCatError("");
-      try {
-        const res = await listCategories();
-        const items = Array.isArray(res?.results) ? res.results : (Array.isArray(res) ? res : []);
-        const mapped = items.map(it => ({ id: it.id ?? it.value ?? it.pk ?? it.slug ?? it.code, name: it.name ?? it.title ?? it.label ?? String(it.id ?? it.value ?? '') }));
-        setCategories(mapped.filter(c => c.id != null));
-      } catch (e) {
-        console.error('Load categories failed', e);
-        setCatError(e?.message || 'Failed to load categories');
-      } finally {
-        setCatLoading(false);
-      }
-    };
-    loadCats();
-  }, []);
+  // Enhanced category selection state
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  
+  // Subsidiary selection state
+  const [subsidiaries, setSubsidiaries] = useState([]);
+  const [subsidiariesLoading, setSubsidiariesLoading] = useState(false);
 
   /* generic handlers */
   const handleChange = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -219,6 +150,13 @@ export default function ProductForm() {
 
   // (Removed) section file upload handlers, as per request to manage these separately
 
+  /* Enhanced category selection handler */
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    handleChange("category", category.id);
+    console.log('Selected category:', category);
+  };
+
   /* more product details handlers */
   const moreAdd = () => setForm(prev => ({ ...prev, moreDetails: [...prev.moreDetails, { key: "", value: "" }] }));
   const moreChange = (i, field, val) => {
@@ -229,12 +167,37 @@ export default function ProductForm() {
   };
   const moreRemove = (i) => setForm(prev => ({ ...prev, moreDetails: prev.moreDetails.filter((_, idx) => idx !== i) }));
 
+  // Load subsidiaries function (extracted for reuse)
+  const loadSubsidiaries = async () => {
+    try {
+      setSubsidiariesLoading(true);
+      const data = await getMySubsidiaries();
+      console.log('Raw subsidiaries API response:', data);
+      const subsidiaryList = Array.isArray(data) ? data : (data?.results || []);
+      setSubsidiaries(subsidiaryList);
+    } catch (error) {
+      console.error('Failed to load subsidiaries:', error);
+      setSubsidiaries([]);
+    } finally {
+      setSubsidiariesLoading(false);
+    }
+  };
+
+  // Load subsidiaries on component mount
+  useEffect(() => {
+    loadSubsidiaries();
+  }, []);
+
   const handleSubmit = (mode = 'post') => {
     if (submitting) return;
     setSubmitting(true);
     (async () => {
       try {
         const payload = await buildCreateWithMediaPayload(form);
+        console.log('Product creation payload:', payload);
+        console.log('Subsidiary in form:', form.subsidiary);
+        console.log('Subsidiary in payload:', payload.product_data?.subsidiary);
+        
         // If later we need to include advertisement flag, we can add to payload here based on mode
         const res = await createProductWithMedia(payload);
         console.debug('Create product response:', res);
@@ -261,6 +224,12 @@ export default function ProductForm() {
             setUiAlert({ type: 'success', message: 'Product created successfully. Brochure uploaded. Redirecting…' });
           } else {
             setUiAlert({ type: 'success', message: 'Product created successfully. Redirecting…' });
+          }
+          
+          // Refresh subsidiaries to update product counts
+          if (form.subsidiary) {
+            console.log('Refreshing subsidiaries after product creation...');
+            await loadSubsidiaries();
           }
         } catch (bErr) {
           console.warn('Brochure upload failed after product creation', bErr);
@@ -295,7 +264,13 @@ export default function ProductForm() {
   };
 
   return (
-    <form dir="ltr" style={{ direction: 'ltr' }} onSubmit={(e) => { e.preventDefault(); handleSubmit('post'); }} className="dashboard-form max-w-4xl mx-auto bg-white p-6 border rounded shadow-sm space-y-6">
+    <div className="max-w-5xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      {/* Page heading */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">Add New Product</h1>
+        <p className="mt-1 text-sm text-gray-600">Create a new product listing with detailed information and media.</p>
+      </div>
+
       {/* Inline Alert */}
       {uiAlert.type && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 px-4 py-3 rounded border text-sm shadow-lg ${uiAlert.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`} role="status" aria-live="polite">
@@ -310,218 +285,466 @@ export default function ProductForm() {
           <button type="button" className="text-xs text-gray-500 hover:text-gray-700" onClick={() => setUiAlert({ type: null, message: '' })}>Dismiss</button>
         </div>
       )}
-      {/* Product Basics */}
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Select categories :</label>
-          <select
-            className="mt-1 block w-full border rounded p-2"
-            value={form.category}
-            onChange={e => handleChange("category", Number(e.target.value))}
-          >
-            <option value="">{catLoading ? 'Loading…' : 'Select'}</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          {catError && (<p className="text-xs text-red-600 mt-1">{catError}</p>)}
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Product Title :</label>
-          <LtrInput className="mt-1 block w-full border rounded p-2" placeholder="Enter exact product name to appear in search results" value={form.title} onChange={e => handleChange("title", e.target.value)} />
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Product Type :</label>
-            <LtrInput className="mt-1 block w-full border rounded p-2" value={form.type} onChange={e => handleChange("type", e.target.value)} />
+      <form dir="ltr" style={{ direction: 'ltr' }} onSubmit={(e) => { e.preventDefault(); handleSubmit('post'); }} className="space-y-6">
+        {/* Product Basic Information Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900">Product Basic Information</h4>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Product Keyword :</label>
-            <LtrInput className="mt-1 block w-full border rounded p-2" value={form.keywords} onChange={e => handleChange("keywords", e.target.value)} />
-          </div>
-        </div>
-
-      </div>
-
-      {/* Product Image Uploads (with Primary selection) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Product Image :</label>
-        <div className="flex items-center gap-4">
-          <div className="w-36 h-28 border-2 border-dashed rounded flex items-center justify-center text-sm text-gray-400">
-            <label className="cursor-pointer">
-              <input type="file" accept="image/*" onChange={e => onProductImages(e.target.files)} className="hidden" />
-              Upload Images
-            </label>
-          </div>
-          <div className="w-36 h-28 border-2 border-dashed rounded flex items-center justify-center text-sm text-gray-400">
-            <label className="cursor-pointer">
-              <input type="file" accept="image/*" onChange={e => onProductImages(e.target.files)} className="hidden" />
-              Upload Images
-            </label>
-          </div>
-
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-2">
-              {form.productImages.map((f, i) => (
-                <div key={i} className="flex flex-col items-center">
-                  <ImageThumb file={f} onRemove={() => removeProductImage(i)} />
-                  <label className="mt-1 text-xs flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={form.primaryImageIndex === i}
-                      onChange={(e) => {
-                        if (e.target.checked) setPrimaryImage(i);
-                        // If unchecked on current primary, ignore to ensure one primary always exists
-                      }}
-                    />
-                    Primary
-                  </label>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Category *</label>
+              <NestedCategorySelector
+                value={form.category}
+                onChange={e => handleChange("category", Number(e.target.value))}
+                onCategorySelect={handleCategorySelect}
+                required
+                placeholder="Choose a category..."
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+              />
+              {selectedCategory && (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <p className="text-blue-800">
+                    <span className="font-medium">Selected:</span> {selectedCategory.name}
+                  </p>
+                  {selectedCategory.group && (
+                    <p className="text-blue-600 text-xs mt-1">
+                      Group: {selectedCategory.group.name}
+                    </p>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <div className="text-xs text-gray-500">You can upload multiple images. Select one as <span className="font-medium">Primary</span>.</div>
-              <button type="button" className="text-xs text-blue-600" onClick={() => imageInputRef.current?.click()}>+ Add more</button>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Brand/Subsidiary (Optional)</label>
+              <select
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                value={form.subsidiary}
+                onChange={e => handleChange("subsidiary", e.target.value)}
+                disabled={subsidiariesLoading}
+              >
+                <option value="">Unbranded (Main Company)</option>
+                {subsidiariesLoading ? (
+                  <option disabled>Loading subsidiaries...</option>
+                ) : (
+                  subsidiaries.map(subsidiary => (
+                    <option key={subsidiary.id} value={subsidiary.id}>
+                      {subsidiary.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              {form.subsidiary && subsidiaries.length > 0 && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                  <p className="text-green-800">
+                    <span className="font-medium">Brand:</span> {subsidiaries.find(s => s.id.toString() === form.subsidiary)?.name}
+                  </p>
+                  <p className="text-green-600 text-xs mt-1">
+                    This product will be associated with the selected subsidiary brand
+                  </p>
+                </div>
+              )}
+              {!subsidiariesLoading && subsidiaries.length === 0 && (
+                <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                  <p>No subsidiaries found for your company. Products will be associated with your main company.</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.assign('/dashboard/contact-info/subsidiaries')}
+                    className="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border text-xs border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors"
+                  >
+                    Manage Subsidiaries
+                  </button>
+                </div>
+              )}
             </div>
-            {/* Hidden input triggered by + Add more */}
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" multiple onChange={e => onProductImages(e.target.files)} />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Title *</label>
+              <LtrInput 
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                placeholder="Enter exact product name to appear in search results" 
+                value={form.title} 
+                onChange={e => handleChange("title", e.target.value)} 
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+                <LtrInput 
+                  className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                  placeholder="e.g., Electronics, Machinery"
+                  value={form.type} 
+                  onChange={e => handleChange("type", e.target.value)} 
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Product Keywords</label>
+                  <div className="relative group">
+                    <svg className="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 w-64">
+                      <div className="text-left space-y-1">
+                        <div className="font-medium text-yellow-300">(Max 8):</div>
+                        <div>Add words buyers might use to search for your product.</div>
+                        <div className="text-gray-300">Use relevant terms only (brand, type, features, synonyms).</div>
+                        <div className="text-gray-300">Separate each keyword with a comma.</div>
+                        <div className="text-gray-300">Maximum 8 keywords, each under 30 characters.</div>
+                        <div className="text-red-300">Do not repeat the same word or add unrelated terms.</div>
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  </div>
+                </div>
+                <LtrInput 
+                  className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                  placeholder="e.g., smartphone, mobile, device"
+                  value={form.keywords} 
+                  onChange={e => handleChange("keywords", e.target.value)} 
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Product Videos */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Product Videos</label>
-        <div className="mt-2 flex items-start gap-4">
-          <div className="w-36 h-28 border-2 border-dashed rounded flex items-center justify-center text-sm text-gray-400 bg-white">
-            <label className="cursor-pointer px-2 text-center">
-              <input type="file" accept="video/*" onChange={e => onProductVideos(e.target.files)} className="hidden" multiple />
-              Upload Videos
-            </label>
+        {/* Product Media Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900">Product Media</h4>
           </div>
-          <div className="flex-1">
-            {form.productVideos.length === 0 ? (
-              <p className="text-sm text-gray-500">No videos selected.</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {form.productVideos.map((v, idx) => (
-                  <li key={idx} className="flex items-center justify-between border rounded px-2 py-1 bg-white">
-                    <div className="truncate mr-2"><span className="text-gray-600">{v.name}</span> <span className="text-gray-400">({Math.round((v.size||0)/1024)} KB)</span></div>
-                    <button type="button" className="text-xs text-red-600" onClick={() => removeProductVideo(idx)}>Remove</button>
-                  </li>
+          
+          <div className="space-y-6">
+            {/* Product Images */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Upload Areas */}
+                <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <div className="pointer-events-none">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">Click to upload images</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={e => onProductImages(e.target.files)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+
+                <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <div className="pointer-events-none">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">Click to upload images</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={e => onProductImages(e.target.files)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+
+                {/* Image Preview Area */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {form.productImages.map((f, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <ImageThumb file={f} onRemove={() => removeProductImage(i)} />
+                        <label className="mt-1 text-xs flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={form.primaryImageIndex === i}
+                            onChange={(e) => {
+                              if (e.target.checked) setPrimaryImage(i);
+                            }}
+                          />
+                          Primary
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500">Select one image as <span className="font-medium">Primary</span>.</div>
+                  <button type="button" className="text-xs text-blue-600 hover:text-blue-800" onClick={() => imageInputRef.current?.click()}>+ Add more images</button>
+                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" multiple onChange={e => onProductImages(e.target.files)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Product Videos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Videos</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <div className="pointer-events-none">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">Click to upload videos</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    onChange={e => onProductVideos(e.target.files)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  {form.productVideos.length === 0 ? (
+                    <p className="text-sm text-gray-500">No videos selected.</p>
+                  ) : (
+                    <ul className="space-y-2 text-sm">
+                      {form.productVideos.map((v, idx) => (
+                        <li key={idx} className="flex items-center justify-between border rounded-lg px-3 py-2 bg-gray-50">
+                          <div className="truncate mr-2">
+                            <span className="text-gray-600">{v.name}</span> 
+                            <span className="text-gray-400 ml-2">({Math.round((v.size||0)/1024)} KB)</span>
+                          </div>
+                          <button type="button" className="text-xs text-red-600 hover:text-red-800" onClick={() => removeProductVideo(idx)}>Remove</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-xs text-gray-500">Accepted: mp4, webm, mov. You can upload multiple videos.</p>
+                  <button type="button" className="text-xs text-blue-600 hover:text-blue-800" onClick={() => videoInputRef.current?.click()}>+ Add more videos</button>
+                  <input ref={videoInputRef} type="file" accept="video/*" className="hidden" multiple onChange={e => onProductVideos(e.target.files)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Product Brochure */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Brochure</label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 border border-gray-300 rounded-lg p-3 text-sm text-gray-700 bg-white flex items-center justify-between">
+                  <span>{form.brochure ? form.brochure.name : "No file selected"}</span>
+                  {form.brochure && (
+                    <button type="button" className="text-xs text-red-600 hover:text-red-800" onClick={() => onBrochure(null)}>Remove</button>
+                  )}
+                </div>
+                <label className="px-4 py-3 text-sm bg-blue-600 text-white border border-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 transition-colors">
+                  Upload Brochure
+                  <input type="file" accept="application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={e => onBrochure(e.target.files && e.target.files[0])} className="hidden" />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Product Details Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900">Product Details & Specifications</h4>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Specification</label>
+              <p className="text-xs text-gray-500 mb-2">Information to help buyers find your product in search results. Buyers can use terms like "size", "color" etc.</p>
+              <RichTextEditor
+                value={form.spec}
+                onChange={(value) => handleChange("spec", value)}
+                placeholder="Enter detailed product specifications..."
+                height="150px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'specification' })}
+                className="mb-2"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Additional Specifications</label>
+                <button type="button" onClick={moreAdd} className="text-sm text-blue-600 hover:text-blue-800">+ Add more</button>
+              </div>
+              <div className="space-y-2">
+                {form.moreDetails.map((md, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <LtrInput 
+                      placeholder="Attribute (e.g., Color)" 
+                      className="flex-1 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      value={md.key} 
+                      onChange={e => moreChange(idx, "key", e.target.value)} 
+                    />
+                    <LtrInput 
+                      placeholder="Value (e.g., Red)" 
+                      className="flex-1 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                      value={md.value} 
+                      onChange={e => moreChange(idx, "value", e.target.value)} 
+                    />
+                    <button type="button" className="text-xs text-red-600 hover:text-red-800 px-2" onClick={() => moreRemove(idx)}>Remove</button>
+                  </div>
                 ))}
-              </ul>
-            )}
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-gray-500">Accepted: mp4, webm, mov. You can upload multiple videos.</p>
-              <button type="button" className="text-xs text-blue-600" onClick={() => videoInputRef.current?.click()}>+ Add more</button>
+              </div>
             </div>
-            {/* Hidden input triggered by + Add more */}
-            <input ref={videoInputRef} type="file" accept="video/*" className="hidden" multiple onChange={e => onProductVideos(e.target.files)} />
           </div>
         </div>
-      </div>
 
-      {/* Product Brochure */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Product Brochure</label>
-        <div className="mt-1 flex items-center gap-3">
-          <div className="flex-1 border rounded p-2 text-sm text-gray-700 bg-white flex items-center justify-between">
-            <span>{form.brochure ? form.brochure.name : "No file selected"}</span>
-            {form.brochure && (
-              <button type="button" className="text-xs text-red-600" onClick={() => onBrochure(null)}>Remove</button>
-            )}
-          </div>
-          <label className="px-3 py-2 text-sm bg-white border rounded cursor-pointer">
-            Click to upload brochure
-            <input type="file" accept="application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={e => onBrochure(e.target.files && e.target.files[0])} className="hidden" />
-          </label>
-        </div>
-      </div>
-
-      {/* Product Specification */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Product Specification :</label>
-        <p className="text-xs text-gray-500 mb-2">Information to help buyers find your product in search results. Buyers can use terms like "size", "color" etc.</p>
-        <textarea {...ltrProps} className="w-full border rounded p-2" rows={3} value={form.spec} onChange={e => handleChange("spec", e.target.value)} />
-      </div>
-
-      {/* Specifications (dynamic key/value) */}
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">Specifications</label>
-          <button type="button" onClick={moreAdd} className="text-sm text-blue-600">+ Add more</button>
-        </div>
-        <div className="mt-2 space-y-2">
-          {form.moreDetails.map((md, idx) => (
-            <div key={idx} className="flex gap-2">
-              <LtrInput placeholder="Attribute (e.g., Color)" className="flex-1 border rounded p-2 text-sm" value={md.key} onChange={e => moreChange(idx, "key", e.target.value)} />
-              <LtrInput placeholder="Value (e.g., Red)" className="flex-1 border rounded p-2 text-sm" value={md.value} onChange={e => moreChange(idx, "value", e.target.value)} />
-              <button type="button" className="text-xs text-red-600" onClick={() => moreRemove(idx)}>Remove</button>
+        {/* Product Description Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
             </div>
-          ))}
+            <h4 className="text-lg font-semibold text-gray-900">Product Description & Benefits</h4>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product/Services Description</label>
+              <RichTextEditor
+                value={form.description}
+                onChange={(value) => handleChange("description", value)}
+                placeholder="Describe your product or service in detail..."
+                height="200px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'description' })}
+                className="mb-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Benefits of Products/Services</label>
+              <RichTextEditor
+                value={form.benefits}
+                onChange={(value) => handleChange("benefits", value)}
+                placeholder="What benefits does your product provide to customers..."
+                height="200px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'benefits' })}
+                className="mb-2"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Product Capacity</label>
+                <LtrInput 
+                  className="w-full h-12 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm" 
+                  value={form.capacity} 
+                  onChange={e => handleChange("capacity", e.target.value)} 
+                  placeholder="e.g., 1000 units per month"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Packaging and Delivery</label>
+                <RichTextEditor
+                  value={form.packaging}
+                  onChange={(value) => handleChange("packaging", value)}
+                  placeholder="Describe packaging and delivery options..."
+                  height="150px"
+                  onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'packaging' })}
+                  className="mb-2"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Product / Services Description (Rich Editor) */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Product/ Services Description:</label>
-        <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.description} onChange={e => handleChange("description", e.target.value)} />
-      </div>
+        {/* Additional Information Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900">Additional Information</h4>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Customer Feedback</label>
+              <RichTextEditor
+                value={form.customerFeedback}
+                onChange={(value) => handleChange("customerFeedback", value)}
+                placeholder="Share customer testimonials or feedback..."
+                height="150px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'customer_feedback' })}
+                className="mb-2"
+              />
+            </div>
 
-      {/* Benefits, Capacity, Packaging */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Benefit of Products / Services</label>
-        <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.benefits} onChange={e => handleChange("benefits", e.target.value)} />
-      </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Questions and Answers</label>
+              <RichTextEditor
+                value={form.qna}
+                onChange={(value) => handleChange("qna", value)}
+                placeholder="Common questions and answers about your product..."
+                height="150px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'qna' })}
+                className="mb-2"
+              />
+            </div>
 
-      <div className="grid sm:grid-cols-2 gap-4 items-end">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Product Capacity:</label>
-          <LtrInput className="mt-1 block w-full border rounded p-2" value={form.capacity} onChange={e => handleChange("capacity", e.target.value)} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Other Information</label>
+              <RichTextEditor
+                value={form.others}
+                onChange={(value) => handleChange("others", value)}
+                placeholder="Any other relevant information..."
+                height="150px"
+                onImageUpload={(file) => handleRichTextImageUpload(file, { section: 'others' })}
+                className="mb-2"
+              />
+            </div>
+
+            <div className="flex items-center gap-4 pt-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input 
+                  type="checkbox" 
+                  checked={form.isFeatured} 
+                  onChange={e => handleChange('isFeatured', e.target.checked)} 
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Mark as Featured Product
+              </label>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Packaging and Delivery</label>
-          <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.packaging} onChange={e => handleChange("packaging", e.target.value)} />
+        {/* Submit Actions */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-center">
+            <button 
+              type="button" 
+              disabled={submitting} 
+              onClick={() => handleSubmit('post')} 
+              className={`px-8 py-3 rounded-lg text-white font-medium w-48 transition-all duration-200 ${submitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'}`}
+            >
+              {submitting ? 'Creating Product...' : 'Create Product'}
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Feedback / Q&A / Others */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Customer Feedback</label>
-        <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.customerFeedback} onChange={e => handleChange("customerFeedback", e.target.value)} />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Questions and Answers</label>
-        <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.qna} onChange={e => handleChange("qna", e.target.value)} />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Others</label>
-        <textarea {...ltrProps} className="mt-1 block w-full border rounded p-2 min-h-[110px]" value={form.others} onChange={e => handleChange("others", e.target.value)} />
-      </div>
-
-      {/* Flags */}
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={form.isFeatured} onChange={e => handleChange('isFeatured', e.target.checked)} />
-          Is Featured
-        </label>
-      </div>
-
-      {/* Bottom Actions */}
-      <div className="flex items-center gap-3 pt-4 border-t">
-        <button type="button" disabled={submitting} onClick={() => handleSubmit('post')} className={`px-5 py-2 rounded text-white ${submitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600'}`}>
-          {submitting ? 'Posting…' : 'Post'}
-        </button>
-        <button type="button" disabled={submitting} onClick={() => handleSubmit('post_and_advertise')} className={`px-5 py-2 rounded text-white ${submitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600'}`}>
-          {submitting ? 'Posting…' : 'Post and advertise product'}
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

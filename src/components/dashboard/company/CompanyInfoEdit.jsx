@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createCompany, getCompanyById, updateCompany, uploadNestedFiles } from '../../../services/companyApi';
+import { createCompany, getCompanyById, updateCompany, uploadNestedFiles, getMyCompany, getMyCompanyWithAddresses, updateMyCompanyWithAddresses } from '../../../services/companyApi';
+import { COUNTRIES, STATES } from '../../../utils/locationData';
+import AddressManager from './AddressManager';
 
 const CompanyInfoEdit = () => {
   const [companyId, setCompanyId] = useState('');
   const [form, setForm] = useState({
     company_name: '',
     about_us: '',
+    about_us_media: [],
     why_choose_us: '',
     year_of_establishment: '',
     number_of_employees: '',
@@ -21,6 +24,8 @@ const CompanyInfoEdit = () => {
     address_state: '',
     address_city: '',
     street: '',
+    // New enhanced addresses array
+    addresses: [],
     company_logo: null,
     company_image: null,
     company_cover_photo: null,
@@ -43,15 +48,78 @@ const CompanyInfoEdit = () => {
     if (qId) setCompanyId(qId);
   }, []);
 
-  // Prefill when updating (note: cannot prefill file inputs)
+  // Load company data for editing (works for both companyId and current user's company)
   useEffect(() => {
     (async () => {
-      if (!companyId) return;
       try {
         setError('');
-        const data = await getCompanyById(companyId);
+        // Try the new bulk replace API endpoint to get company with addresses
+        let data;
+        try {
+          data = await getMyCompanyWithAddresses();
+        } catch (error) {
+          console.warn('New addresses endpoint failed for loading, falling back to existing logic:', error.message);
+          // Fallback to existing company loading logic
+          data = await getMyCompany();
+        }
+        
+        if (!data) {
+          // No company profile exists yet - this is fine for new company creation
+          console.log('No company profile found - ready for new company creation');
+          return;
+        }
+        
         const c = data?.company || data;
+        
+        // Set companyId if we loaded existing company data
+        if (c?.id && !companyId) {
+          setCompanyId(String(c.id));
+        }
+        
         // Map API fields directly; ignore files
+        // Normalize country/state for dropdowns
+        let cc = c.address_country || '';
+        if (cc && String(cc).length > 2) {
+          const foundC = COUNTRIES.find(x => x.name.toLowerCase() === String(cc).toLowerCase());
+          if (foundC) cc = foundC.code;
+        }
+        let st = c.address_state || '';
+        if (cc === 'US' && st) {
+          const foundS = (STATES.US || []).find(x => x.name?.toLowerCase() === String(st).toLowerCase() || x.code === st);
+          if (foundS) st = foundS.code;
+        }
+        // Prefill addresses array (from c.addresses) and ensure head office marked
+        const apiAddresses = Array.isArray(c.addresses) ? c.addresses : [];
+        // If backend also returns head_office separately, ensure it's reflected in addresses
+        const headOffice = c.head_office || null;
+        let addresses = apiAddresses.map(a => ({
+          country: a.country || '',
+          state_region: a.state_region || a.state || '',
+          city: a.city || '',
+          street_address: a.street_address || a.street || '',
+          postal_code: a.postal_code || '',
+          phone_number: a.phone_number || '',
+          email: a.email || '',
+          latitude: (a.latitude ?? ''),
+          longitude: (a.longitude ?? ''),
+          is_head_office: !!a.is_head_office
+        }));
+        if (headOffice && !addresses.some(a => a.is_head_office)) {
+          // Try to match head_office to one of the addresses, else push it
+          const hoObj = {
+            country: headOffice.country || '',
+            state_region: headOffice.state_region || headOffice.state || '',
+            city: headOffice.city || '',
+            street_address: headOffice.street_address || headOffice.street || '',
+            postal_code: headOffice.postal_code || '',
+            phone_number: headOffice.phone_number || '',
+            email: headOffice.email || '',
+            latitude: (headOffice.latitude ?? ''),
+            longitude: (headOffice.longitude ?? ''),
+            is_head_office: true
+          };
+          addresses = [hoObj, ...addresses];
+        }
         setForm(prev => ({
           ...prev,
           company_name: c.company_name || '',
@@ -66,11 +134,14 @@ const CompanyInfoEdit = () => {
           additional_info: c.additional_info || '',
           questions_and_answers: c.questions_and_answers || '',
           others: c.others || '',
-          address_country: c.address_country || '',
-          address_state: c.address_state || '',
+          address_country: cc,
+          address_state: st,
           address_city: c.address_city || '',
           street: c.street || '',
+          // prefill addresses
+          addresses,
           // keep arrays of files empty unless user selects new ones
+          about_us_media: [],
           certificates: [],
           blog_awards: [],
           production_sites: [],
@@ -78,14 +149,20 @@ const CompanyInfoEdit = () => {
           exhibitions: [],
         }));
       } catch (e) {
+        console.error('Failed to load company data:', e);
         setError(e.message || 'Failed to load company');
       }
     })();
-  }, [companyId]);
+  }, []); // Load on mount
 
   const onChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => {
+      if (name === 'address_country' && value !== prev.address_country) {
+        return { ...prev, address_country: value, address_state: '' };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const onFileChange = (e) => {
@@ -105,9 +182,77 @@ const CompanyInfoEdit = () => {
     setError('');
     setSuccess('');
     try {
+      console.log('Form submission - original payload addresses:', form.addresses);
+      
       const payload = { ...form };
+      
+      // Clean up addresses array for API submission
+      if (Array.isArray(payload.addresses) && payload.addresses.length > 0) {
+        // Filter out empty addresses - only include addresses with at least one location field
+        const validAddresses = payload.addresses.filter(addr => {
+          const hasLocationData = addr.country?.trim() || 
+                                 addr.state_region?.trim() || 
+                                 addr.city?.trim() || 
+                                 addr.street_address?.trim();
+          return hasLocationData;
+        });
+        
+        if (validAddresses.length === 0) {
+          // No valid addresses, remove addresses array entirely
+          delete payload.addresses;
+        } else {
+          // Clean and format valid addresses
+          payload.addresses = validAddresses.map(addr => ({
+            id: addr.id, // Include ID for updates, omit for creates
+            country: addr.country?.trim() || null,
+            state_region: addr.state_region?.trim() || null,
+            city: addr.city?.trim() || null,
+            street_address: addr.street_address?.trim() || null,
+            postal_code: addr.postal_code?.trim() || null,
+            phone_number: addr.phone_number?.trim() || null,
+            email: addr.email?.trim() || null,
+            latitude: addr.latitude ?? null,
+            longitude: addr.longitude ?? null,
+            is_head_office: !!addr.is_head_office,
+          }));
+          
+          // Ensure exactly one head office
+          const headOfficeCount = payload.addresses.filter(a => a.is_head_office).length;
+          if (headOfficeCount === 0 && payload.addresses.length > 0) {
+            payload.addresses[0].is_head_office = true;
+          } else if (headOfficeCount > 1) {
+            let firstHeadOfficeFound = false;
+            payload.addresses = payload.addresses.map(addr => {
+              if (addr.is_head_office && !firstHeadOfficeFound) {
+                firstHeadOfficeFound = true;
+                return addr;
+              }
+              return { ...addr, is_head_office: false };
+            });
+          }
+        }
+      } else {
+        // If no addresses provided, create a minimal head office from legacy fields
+        if (payload.address_country || payload.address_state || payload.address_city || payload.street) {
+          payload.addresses = [{
+            country: payload.address_country || null,
+            state_region: payload.address_state || null,
+            city: payload.address_city || null,
+            street_address: payload.street || null,
+            postal_code: null,
+            phone_number: null,
+            email: null,
+            latitude: null,
+            longitude: null,
+            is_head_office: true
+          }];
+        }
+      }
+      
+      console.log('Final payload addresses before submission:', payload.addresses);
+      console.log('Complete payload being sent:', payload);
       // Only include multi-file arrays if user selected files; otherwise omit to avoid overwriting on PATCH
-      ['certificates','blog_awards','production_sites','storage_sites','exhibitions'].forEach(k => {
+      ['about_us_media','certificates','blog_awards','production_sites','storage_sites','exhibitions'].forEach(k => {
         if (!Array.isArray(payload[k]) || payload[k].length === 0) {
           delete payload[k];
         }
@@ -116,9 +261,19 @@ const CompanyInfoEdit = () => {
       ['company_logo','company_image','company_cover_photo'].forEach(k => {
         if (!payload[k]) delete payload[k];
       });
-      const res = companyId
-        ? await updateCompany(companyId, payload)
-        : await createCompany(payload);
+      // Try the new bulk replace API endpoint for addresses, with fallback to existing logic
+      let res;
+      if (companyId) {
+        try {
+          res = await updateMyCompanyWithAddresses(payload);
+        } catch (error) {
+          console.warn('New addresses endpoint failed, falling back to existing update:', error.message);
+          // Fallback to existing update logic
+          res = await updateCompany(companyId, payload);
+        }
+      } else {
+        res = await createCompany(payload);
+      }
       // Determine target company id
       let targetId = companyId;
       if (!targetId) {
@@ -133,6 +288,7 @@ const CompanyInfoEdit = () => {
       let nestedSummary = [];
       if (targetId) {
         const nestedMap = [
+          ['about_us_media', 'about-us-media'],
           ['certificates', 'certificates'],
           ['blog_awards', 'blog-awards'],
           ['production_sites', 'production-sites'],
@@ -189,6 +345,42 @@ const CompanyInfoEdit = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ---------- Addresses UI Helpers ----------
+  const emptyAddress = () => ({
+    country: '',
+    state_region: '',
+    city: '',
+    street_address: '',
+    postal_code: '',
+    phone_number: '',
+    email: '',
+    latitude: '',
+    longitude: '',
+    is_head_office: false
+  });
+
+  const addAddress = () => {
+    setForm(prev => ({ ...prev, addresses: [...(prev.addresses || []), emptyAddress()] }));
+  };
+
+  const removeAddress = (idx) => {
+    setForm(prev => ({ ...prev, addresses: (prev.addresses || []).filter((_, i) => i !== idx) }));
+  };
+
+  const updateAddressField = (idx, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      addresses: (prev.addresses || []).map((a, i) => i === idx ? { ...a, [field]: value } : a)
+    }));
+  };
+
+  const setHeadOffice = (idx) => {
+    setForm(prev => ({
+      ...prev,
+      addresses: (prev.addresses || []).map((a, i) => ({ ...a, is_head_office: i === idx }))
+    }));
   };
 
   return (
@@ -283,7 +475,7 @@ const CompanyInfoEdit = () => {
             {/* Annual Turnover */}
             <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Annual Turnover</div>
             <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input name="annual_turnover" value={form.annual_turnover} onChange={onChange} placeholder="e.g. $1M" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
+              <input name="annual_turnover" value={form.annual_turnover} onChange={onChange} placeholder="e.g. ₦1M" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
             </div>
 
             {/* Capacity */}
@@ -298,34 +490,30 @@ const CompanyInfoEdit = () => {
               <textarea name="about_us" value={form.about_us} onChange={onChange} rows={3} placeholder="Describe your company" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"></textarea>
             </div>
 
+            {/* About Us Media */}
+            <div className="bg-gray-100 text-gray-700 px-4 py-5 border-b border-blue-100 flex items-center">About Us Media</div>
+            <div className="px-4 py-5 border-b md:border-l border-blue-100">
+              <input type="file" name="about_us_media" multiple onChange={onMultiFileChange} className="block w-full text-sm" />
+              <p className="mt-2 text-xs text-gray-500">Upload multiple images/videos to showcase your company story.</p>
+            </div>
+
             {/* Why Choose Us */}
             <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Why Choose Us</div>
             <div className="px-4 py-4 border-b md:border-l border-blue-100">
               <textarea name="why_choose_us" value={form.why_choose_us} onChange={onChange} rows={3} placeholder="What sets you apart" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"></textarea>
             </div>
 
-            {/* Address - Country */}
-            <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Country</div>
-            <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input name="address_country" value={form.address_country} onChange={onChange} placeholder="Country" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
-            </div>
-
-            {/* Address - State */}
-            <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">State</div>
-            <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input name="address_state" value={form.address_state} onChange={onChange} placeholder="State" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
-            </div>
-
-            {/* Address - City */}
-            <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">City</div>
-            <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input name="address_city" value={form.address_city} onChange={onChange} placeholder="City" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
-            </div>
-
-            {/* Address - Street */}
-            <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Street</div>
-            <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input name="street" value={form.street} onChange={onChange} placeholder="Street" className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none" />
+            {/* Multiple Addresses Manager */}
+            <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Company Addresses</div>
+            <div className="px-4 py-6 border-b md:border-l border-blue-100">
+              <AddressManager
+                addresses={form.addresses}
+                onChange={(addresses) => setForm(prev => ({ ...prev, addresses }))}
+                className="w-full"
+              />
+              <p className="mt-3 text-xs text-gray-500">
+                Manage multiple company addresses. Mark one as head office. Use bulk replace - all addresses are saved together.
+              </p>
             </div>
 
             {/* Collections - Certificates */}

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getUserProfile, updateUserProfile, TITLE_OPTIONS } from '../../../services/authApi';
+import { COUNTRIES, STATES, getCountryName } from '../../../utils/locationData';
 
 const BasicInfoEdit = () => {
   const { user, updateUser } = useAuth();
@@ -43,12 +44,24 @@ const BasicInfoEdit = () => {
         const profile = await getUserProfile();
         const data = profile.user || profile;
         
-        setFormData({
-          title: data?.title || '',
-          fullName: data?.fullName || data?.full_name || '',
-          companyName: data?.companyName || data?.company_name || '',
-          country: data?.country || '',
-          state: data?.state || '',
+        // Normalize country -> ISO code for dropdown, normalize US state names -> codes
+        (() => {
+          let countryVal = data?.country || '';
+          if (countryVal && String(countryVal).length > 2) {
+            const found = COUNTRIES.find(c => c.name.toLowerCase() === String(countryVal).toLowerCase());
+            if (found) countryVal = found.code;
+          }
+          let stateVal = data?.state || '';
+          if (countryVal === 'US' && stateVal) {
+            const foundState = (STATES.US || []).find(s => s.name?.toLowerCase() === String(stateVal).toLowerCase() || s.code === stateVal);
+            if (foundState) stateVal = foundState.code;
+          }
+          setFormData({
+            title: data?.title || '',
+            fullName: data?.fullName || data?.full_name || '',
+            companyName: data?.companyName || data?.company_name || '',
+            country: countryVal,
+            state: stateVal,
           phoneNumber: data?.phoneNumber || data?.phone_number || '',
           businessType: data?.businessType || data?.business_type || '',
           profile_image_url: data?.profile_image_url || data?.profilePhotoUrl || data?.profile_photo_url || data?.profile_image || data?.profile_photo || '',
@@ -58,7 +71,8 @@ const BasicInfoEdit = () => {
           position: data?.position || '',
           socialMediaContact: data?.social_media_contact || data?.socialMediaContact || '',
           website: data?.website || ''
-        });
+          });
+        })();
 
         // Set photo preview if exists
         if (data?.profile_image_url || data?.profilePhotoUrl || data?.profile_photo_url || data?.profile_image || data?.profile_photo) {
@@ -78,12 +92,23 @@ const BasicInfoEdit = () => {
         setError('Failed to load basic information');
         // Use cached user data if available
         if (user) {
-          setFormData({
-            title: user?.title || '',
-            fullName: user?.fullName || user?.full_name || '',
-            companyName: user?.companyName || user?.company_name || '',
-            country: user?.country || '',
-            state: user?.state || '',
+          (() => {
+            let countryVal = user?.country || '';
+            if (countryVal && String(countryVal).length > 2) {
+              const found = COUNTRIES.find(c => c.name.toLowerCase() === String(countryVal).toLowerCase());
+              if (found) countryVal = found.code;
+            }
+            let stateVal = user?.state || '';
+            if (countryVal === 'US' && stateVal) {
+              const foundState = (STATES.US || []).find(s => s.name?.toLowerCase() === String(stateVal).toLowerCase() || s.code === stateVal);
+              if (foundState) stateVal = foundState.code;
+            }
+            setFormData({
+              title: user?.title || '',
+              fullName: user?.fullName || user?.full_name || '',
+              companyName: user?.companyName || user?.company_name || '',
+              country: countryVal,
+              state: stateVal,
             phoneNumber: user?.phoneNumber || user?.phone_number || '',
             businessType: user?.businessType || user?.business_type || '',
             profile_image_url: user?.profile_image_url || user?.profilePhotoUrl || user?.profile_photo_url || user?.profile_image || user?.profile_photo || '',
@@ -93,7 +118,8 @@ const BasicInfoEdit = () => {
             position: user?.position || '',
             socialMediaContact: user?.social_media_contact || user?.socialMediaContact || '',
             website: user?.website || ''
-          });
+            });
+          })();
           const sm = (user?.social_media_contact || user?.socialMediaContact || '').toString();
           const parts = sm.includes(':') ? sm.split(':') : [];
           if (parts.length >= 2) {
@@ -121,10 +147,13 @@ const BasicInfoEdit = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      // If country changed, clear state to avoid inconsistent selection
+      if (name === 'country' && value !== prev.country) {
+        return { ...prev, country: value, state: '' };
+      }
+      return { ...prev, [name]: value };
+    });
     // Clear error when user starts typing
     if (error) setError(null);
     if (success) setSuccess(false);
@@ -373,29 +402,51 @@ const BasicInfoEdit = () => {
             {/* Country */}
             <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">Country</div>
             <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input
-                type="text"
+              <select
                 id="country"
                 name="country"
                 value={formData.country}
                 onChange={handleInputChange}
-                placeholder="Enter country"
                 className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"
-              />
+              >
+                <option value="">Select country</option>
+                {COUNTRIES.map(c => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
-            {/* State (optional) */}
+            {/* State/Region (optional) */}
             <div className="bg-gray-100 text-gray-700 px-4 py-4 border-b border-blue-100 flex items-center">State (Optional)</div>
             <div className="px-4 py-4 border-b md:border-l border-blue-100">
-              <input
-                type="text"
-                id="state"
-                name="state"
-                value={formData.state}
-                onChange={handleInputChange}
-                placeholder="Enter state/region"
-                className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"
-              />
+              {STATES[formData.country] ? (
+                <select
+                  id="state"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"
+                >
+                  <option value="">Select state/region</option>
+                  {Array.isArray(STATES[formData.country]) && STATES[formData.country].map((s) => (
+                    typeof s === 'string' ? (
+                      <option key={s} value={s}>{s}</option>
+                    ) : (
+                      <option key={s.code} value={s.code}>{s.name}</option>
+                    )
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  id="state"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  placeholder="Enter state/region"
+                  className="block w-full border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 rounded-none"
+                />
+              )}
             </div>
 
             {/* Business Type */}

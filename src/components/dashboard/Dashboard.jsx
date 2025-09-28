@@ -9,6 +9,7 @@ import BasicInfoEdit from './company/BasicInfoEdit';
 import CompanyInfoEdit from './company/CompanyInfoEdit';
 import CompanyInfoView from './company/CompanyInfoView';
 import ManageProducts from './products/ManageProducts';
+import ManageGroups from './products/ManageGroups';
 import AddProduct from './products/AddProduct';
 import ChangePassword from '../auth/ChangePassword';
 import VerifyBusiness from './VerifyBusiness';
@@ -16,6 +17,11 @@ import AgentManagement from './agent/AgentManagement';
 import ComingSoon from '../common/ComingSoon';
 import PrivacySettings from './privacy/PrivacySettings';
 import MessageGuide from './MessageGuide';
+import Reports from './reports/Reports';
+import TransactionActivities from './TransactionActivities';
+import PaymentPlatform from './PaymentPlatform';
+import EmailSubscription from './reports/EmailSubscription';
+import CompanySubsidiaries from './CompanySubsidiaries';
 
 const Dashboard = () => {
   return (
@@ -31,10 +37,12 @@ const Dashboard = () => {
           <Route path="/contact-info/basic/edit" element={<BasicInfoEdit />} />
           <Route path="/contact-info/company" element={<CompanyInfoView />} />
           <Route path="/contact-info/company/edit" element={<CompanyInfoEdit />} />
+          <Route path="/contact-info/subsidiaries" element={<CompanySubsidiaries />} />
 
           {/* Product Information Routes */}
           <Route path="/product-info/add" element={<AddProduct />} />
           <Route path="/product-info/manage" element={<ManageProducts />} />
+          <Route path="/product-info/manage-groups" element={<ManageGroups />} />
           {/** Removed: Product Request Information route **/}
 
           {/* Quotation Builder Routes */}
@@ -47,14 +55,14 @@ const Dashboard = () => {
           {/* Privacy Information Routes */}
           <Route path="/privacy-info/privacy" element={<PrivacySettings />} />
           <Route path="/privacy-info/password" element={<ChangePassword />} />
-          <Route path="/privacy-info/email" element={<ComingSoon title="Email Subscription" description="Email subscription functionality coming soon..." />} />
+          <Route path="/privacy-info/email" element={<EmailSubscription />} />
 
           {/* Top Navigation Routes */}
           <Route path="/message-guide" element={<MessageGuide />} />
           <Route path="/agent-management" element={<AgentManagement />} />
-          <Route path="/transaction-activities" element={<ComingSoon title="Transaction Activities" description="Transaction activities functionality coming soon..." />} />
-          <Route path="/payment-platform" element={<ComingSoon title="Payment Platform" description="Payment platform functionality coming soon..." />} />
-          <Route path="/reports" element={<ComingSoon title="Reports" description="Reports functionality coming soon..." />} />
+          <Route path="/transaction-activities" element={<TransactionActivities />} />
+          <Route path="/payment-platform" element={<PaymentPlatform />} />
+          <Route path="/reports" element={<Reports />} />
 
           {/* Legacy routes for backward compatibility */}
           <Route path="/company-info" element={<Navigate to="/dashboard/contact-info/basic" replace />} />

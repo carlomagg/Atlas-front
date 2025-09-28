@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { getCountryName, getStateDisplay } from '../../../utils/locationData';
 import { Link, useLocation } from 'react-router-dom';
 import { getMyCompany, listNestedFiles } from '../../../services/companyApi';
 import MediaItem from '../../common/MediaItem';
@@ -8,6 +9,7 @@ const CompanyInfoView = () => {
   const [error, setError] = useState('');
   const [company, setCompany] = useState(null);
   const [collections, setCollections] = useState({
+    about_us_media: [],
     certificates: [],
     blog_awards: [],
     production_sites: [],
@@ -43,6 +45,7 @@ const CompanyInfoView = () => {
         const id = company?.id || company?.company_id;
         if (!id) return;
         const segs = [
+          ['about_us_media', 'about-us-media'],
           ['certificates', 'certificates'],
           ['blog_awards', 'blog-awards'],
           ['production_sites', 'production-sites'],
@@ -161,10 +164,6 @@ const CompanyInfoView = () => {
               { label: 'Company Name', value: company.company_name },
               { label: 'Brand Name', value: company.brand_name },
               { label: 'Website', value: company.website },
-              { label: 'Country', value: company.address_country },
-              { label: 'State', value: company.address_state },
-              { label: 'City', value: company.address_city },
-              { label: 'Street', value: company.street },
               { label: 'Year of Establishment', value: company.year_of_establishment },
               { label: 'Employees', value: company.number_of_employees },
               { label: 'Annual Turnover', value: company.annual_turnover },
@@ -175,6 +174,70 @@ const CompanyInfoView = () => {
                 <p className="text-lg font-semibold text-gray-900">{field.value ?? 'Not specified'}</p>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Addresses Section: Head Office + Other Branches */}
+        {company && (company.head_office || (Array.isArray(company.addresses) && company.addresses.length > 0)) && (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Company Addresses</h2>
+
+            {/* Head Office */}
+            {company.head_office && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-800">Head Office</p>
+                  <span className="text-xs text-blue-700">Primary Location</span>
+                </div>
+                <div className="mt-2 text-gray-900">
+                  <div className="text-base font-semibold">
+                    {company.head_office.street_address || company.head_office.street || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    {(company.head_office.city || '—')}, {(company.head_office.state_region || company.head_office.state || '—')}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    {company.head_office.country || '—'}{company.head_office.postal_code ? `, ${company.head_office.postal_code}` : ''}
+                  </div>
+                  {(company.head_office.phone_number || company.head_office.email) && (
+                    <div className="mt-1 text-sm text-gray-700">
+                      {company.head_office.phone_number && (<span className="mr-4">📞 {company.head_office.phone_number}</span>)}
+                      {company.head_office.email && (<span>✉️ {company.head_office.email}</span>)}
+                    </div>
+                  )}
+                  {(company.head_office.latitude || company.head_office.longitude) && (
+                    <div className="mt-1 text-xs text-gray-600">
+                      Coordinates: {company.head_office.latitude ?? '—'}, {company.head_office.longitude ?? '—'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Other Branches */}
+            {Array.isArray(company.addresses) && company.addresses.filter(a => !a?.is_head_office).length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-800">Other Branches</p>
+                  <span className="text-xs text-gray-500">{company.addresses.filter(a => !a?.is_head_office).length} location(s)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {company.addresses.filter(a => !a?.is_head_office).map((addr, i) => (
+                    <div key={i} className="rounded border bg-white p-3">
+                      <div className="text-sm font-semibold text-gray-900">{addr.street_address || addr.street || '—'}</div>
+                      <div className="text-xs text-gray-700">{addr.city || '—'}, {addr.state_region || addr.state || '—'}</div>
+                      <div className="text-xs text-gray-700">{addr.country || '—'}{addr.postal_code ? `, ${addr.postal_code}` : ''}</div>
+                      {(addr.phone_number || addr.email) && (
+                        <div className="mt-1 text-xs text-gray-700">
+                          {addr.phone_number && (<span className="mr-3">📞 {addr.phone_number}</span>)}
+                          {addr.email && (<span>✉️ {addr.email}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -233,6 +296,7 @@ const CompanyInfoView = () => {
           <div className="mt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Collections</h2>
             {[
+              { key: 'about_us_media', label: 'About Us Media' },
               { key: 'certificates', label: 'Certificates' },
               { key: 'blog_awards', label: 'Blog & Awards' },
               { key: 'production_sites', label: 'Production Sites' },
@@ -257,8 +321,8 @@ const CompanyInfoView = () => {
                             type={kind === 'file' ? undefined : kind}
                             className="max-h-24 w-full object-cover rounded"
                           />
-                          <div className="mt-1 w-full text-[10px] text-gray-500 truncate text-center" title={url || 'no url'}>
-                            {url || 'no url'}
+                          <div className="mt-1 w-full text-[10px] text-gray-600 truncate text-center" title={it.original_filename || it.public_id || url || 'Media file'}>
+                            {it.original_filename || it.public_id?.split('/').pop() || `${kind} file` || 'Media file'}
                           </div>
                         </div>
                       );
@@ -275,6 +339,30 @@ const CompanyInfoView = () => {
           <div className="mt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-3">About Us</h2>
             <p className="text-gray-800 whitespace-pre-line">{company.about_us}</p>
+            
+            {/* About Us Media */}
+            {company?.about_us_media && Array.isArray(company.about_us_media) && company.about_us_media.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-md font-medium text-gray-700 mb-2">About Us Media</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {company.about_us_media.map((mediaItem, idx) => {
+                    const { kind, url } = mediaSourceForItem(mediaItem);
+                    return (
+                      <div key={idx} className="bg-gray-50 rounded border p-2">
+                        <MediaItem
+                          src={url}
+                          type={kind === 'file' ? undefined : kind}
+                          className="w-full h-20 object-cover rounded"
+                        />
+                        <div className="mt-1 text-[10px] text-gray-600 truncate text-center" title={mediaItem.original_filename || mediaItem.public_id || url || 'Media file'}>
+                          {mediaItem.original_filename || mediaItem.public_id?.split('/').pop() || `${kind} file` || 'Media file'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {company?.why_choose_us && (

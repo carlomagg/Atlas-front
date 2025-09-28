@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Login from './Login';
 import RequestOTP from './RequestOTP';
 import VerifyOTP from './VerifyOTP';
@@ -9,8 +9,10 @@ import SignupEmailVerification from './SignupEmailVerification';
 
 const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [authData, setAuthData] = useState({});
+  const [referralCode, setReferralCode] = useState('');
 
   // Navigation handlers
   const handleLogin = (loginData) => {
@@ -30,12 +32,29 @@ const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
     setCurrentStep('requestOTPSignup');
   };
 
-  // Handle initial step setup
+  // Handle initial step setup and referral code capture
   useEffect(() => {
     if (initialStep === 'signup') {
       setCurrentStep('requestOTPSignup');
     }
-  }, [initialStep]);
+
+    // Capture referral code from URL parameter (?ref=CODE)
+    const urlParams = new URLSearchParams(location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode) {
+      setReferralCode(refCode);
+      // Store in localStorage for persistence across page refreshes during this registration session
+      localStorage.setItem('referralCode', refCode);
+      console.log('Referral code captured from URL:', refCode);
+    } else {
+      // If no referral code in URL, clear any existing referral code
+      // This ensures fresh registration attempts don't inherit old referral codes
+      setReferralCode('');
+      localStorage.removeItem('referralCode');
+      console.log('No referral code in URL, cleared any existing referral code');
+    }
+  }, [initialStep, location.search]);
 
   const handleRequestOTPContinue = (data) => {
     setAuthData(prev => ({ ...prev, email: data.email }));
@@ -64,6 +83,10 @@ const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
 
   const handleRegistrationComplete = (data) => {
     console.log('Registration complete:', data);
+    // Clear referral code from localStorage after successful registration
+    localStorage.removeItem('referralCode');
+    setReferralCode('');
+    
     if (data.type === 'showLogin') {
       setCurrentStep('login');
     } else if (data.type === 'home') {
@@ -129,6 +152,7 @@ const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
       case 'requestOTPSignup':
         return (
           <SignupEmailVerification
+            referralCode={referralCode}
             onContinue={handleRequestOTPContinue}
             onBack={handleBack}
           />
@@ -169,6 +193,7 @@ const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
         return (
           <CompleteRegistration
             email={authData.email}
+            referralCode={referralCode}
             onComplete={handleRegistrationComplete}
             onBack={handleBack}
           />

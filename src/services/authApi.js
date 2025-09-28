@@ -263,41 +263,48 @@ const apiRequest = async (endpoint, options = {}) => {
     if (!response.ok) {
       // Handle global session expiration on Unauthorized
       if (response.status === 401) {
-        try {
-          // Prevent multiple simultaneous redirects
-          if (!window.__atlasSessionHandled401) {
-            window.__atlasSessionHandled401 = true;
-            // Clear any stored auth and inform user
-            try { authStorage.clearAuth(); } catch {}
-            // Show a non-blocking styled toast for consistency, then redirect
-            try {
-              const toast = document.createElement('div');
-              toast.setAttribute('role', 'alert');
-              toast.className = 'fixed top-4 right-4 max-w-sm bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-lg z-[9999] animate-[pulse_1.6s_ease-in-out_2]';
-              toast.innerHTML = `
-                <div class="flex items-start">
-                  <svg class="h-5 w-5 text-amber-600 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.6c.75 1.334-.213 3.001-1.743 3.001H3.482c-1.53 0-2.493-1.667-1.743-3.001l6.518-11.6zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a.75.75 0 01-.75-.75v-3.5a.75.75 0 011.5 0v3.5A.75.75 0 0110 12z" clip-rule="evenodd" />
-                  </svg>
-                  <div class="ml-3">
-                    <p class="text-sm font-semibold text-amber-800">Session expired</p>
-                    <p class="mt-1 text-sm text-amber-700">Please log in again. Redirecting…</p>
-                  </div>
-                </div>`;
-              document.body.appendChild(toast);
-              setTimeout(() => { try { toast.remove(); } catch {} }, 4000);
-            } catch {}
-            // Delay a bit so the toast is visible, then redirect
-            try { if (window.__atlasSession401Timer) { clearTimeout(window.__atlasSession401Timer); } } catch {}
-            window.__atlasSession401Timer = setTimeout(() => {
-              try { window.location.assign('/login'); } catch { window.location.href = '/login'; }
-            }, 1800);
-          }
-        } catch {}
-        // Create and throw a normalized error; execution likely interrupts due to redirect
-        const err = new Error('Unauthorized: Session expired. Please log in again.');
-        err.status = 401;
-        throw err;
+        // Check if this is a login attempt (don't treat login failures as session expiration)
+        const isLoginAttempt = endpoint.includes('/auth/login/') || endpoint.includes('/register/');
+        
+        if (!isLoginAttempt) {
+          // This is a session expiration for an authenticated user
+          try {
+            // Prevent multiple simultaneous redirects
+            if (!window.__atlasSessionHandled401) {
+              window.__atlasSessionHandled401 = true;
+              // Clear any stored auth and inform user
+              try { authStorage.clearAuth(); } catch {}
+              // Show a non-blocking styled toast for consistency, then redirect
+              try {
+                const toast = document.createElement('div');
+                toast.setAttribute('role', 'alert');
+                toast.className = 'fixed top-4 right-4 max-w-sm bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-lg z-[9999] animate-[pulse_1.6s_ease-in-out_2]';
+                toast.innerHTML = `
+                  <div class="flex items-start">
+                    <svg class="h-5 w-5 text-amber-600 mt-0.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.6c.75 1.334-.213 3.001-1.743 3.001H3.482c-1.53 0-2.493-1.667-1.743-3.001l6.518-11.6zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a.75.75 0 01-.75-.75v-3.5a.75.75 0 011.5 0v3.5A.75.75 0 0110 12z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="ml-3">
+                      <p class="text-sm font-semibold text-amber-800">Session expired</p>
+                      <p class="mt-1 text-sm text-amber-700">Please log in again. Redirecting…</p>
+                    </div>
+                  </div>`;
+                document.body.appendChild(toast);
+                setTimeout(() => { try { toast.remove(); } catch {} }, 4000);
+              } catch {}
+              // Delay a bit so the toast is visible, then redirect
+              try { if (window.__atlasSession401Timer) { clearTimeout(window.__atlasSession401Timer); } } catch {}
+              window.__atlasSession401Timer = setTimeout(() => {
+                try { window.location.assign('/login'); } catch { window.location.href = '/login'; }
+              }, 1800);
+            }
+          } catch {}
+          // Create and throw a normalized error; execution likely interrupts due to redirect
+          const err = new Error('Unauthorized: Session expired. Please log in again.');
+          err.status = 401;
+          throw err;
+        }
+        // For login attempts, fall through to normal error handling below
       }
       let rawText = '';
       try { rawText = await response.text(); } catch {}
@@ -525,7 +532,7 @@ export const resendOTP = async (email) => {
 // Get current user profile (requires authentication)
 export const getCurrentUser = async () => {
   try {
-    const response = await apiRequest('/auth/profile/', {
+    const response = await apiRequest('/accounts/profile/', {
       method: 'GET'
     });
     return response;
@@ -605,7 +612,7 @@ export const changePassword = async (oldPassword, newPassword, confirmPassword) 
 // Get user profile
 export const getUserProfile = async () => {
   try {
-    const response = await apiRequest('/auth/profile/', {
+    const response = await apiRequest('/accounts/profile/', {
       method: 'GET'
     });
     // Normalize profile image fields for consumers
@@ -634,12 +641,25 @@ export const getUserProfile = async () => {
   }
 };
 
+// Get company profile by user ID (for parent company lookup)
+export const getCompanyProfileByUserId = async (userId) => {
+  try {
+    const response = await apiRequest(`/accounts/users/${userId}/profile/`, {
+      method: 'GET'
+    });
+    return response;
+  } catch (error) {
+    console.error('Get company profile by user ID error:', error);
+    throw error;
+  }
+};
+
 // Update user profile
 export const updateUserProfile = async (profileData) => {
   // If FormData is provided (e.g., with profile photo), pass through directly
   if (profileData instanceof FormData) {
     try {
-      const response = await apiRequest('/auth/profile/', {
+      const response = await apiRequest('/accounts/profile/', {
         method: 'PUT',
         // Important: do NOT set Content-Type; browser will set multipart boundary
         body: profileData
@@ -723,7 +743,7 @@ export const updateUserProfile = async (profileData) => {
   };
 
   try {
-    const response = await apiRequest('/auth/profile/', {
+    const response = await apiRequest('/accounts/profile/', {
       method: 'PUT',
       body: JSON.stringify(payload)
     });
@@ -771,7 +791,7 @@ export const updateUserProfile = async (profileData) => {
 // Delete user account
 export const deleteUserAccount = async (password) => {
   try {
-    const response = await apiRequest('/auth/profile/', {
+    const response = await apiRequest('/accounts/profile/', {
       method: 'DELETE',
       body: JSON.stringify({ password })
     });
@@ -796,6 +816,7 @@ export const submitAgentApplication = async (applicationData) => {
     phoneNumber,
     email,
     address,
+    state,
     bankName,
     accountNumber,
     idType,
@@ -805,7 +826,7 @@ export const submitAgentApplication = async (applicationData) => {
   } = applicationData;
 
   // Validate required fields
-  if (!firstName || !lastName || !phoneNumber || !email || !address || !bankName || !accountNumber || !idType || !idNumber) {
+  if (!firstName || !lastName || !phoneNumber || !email || !address || !state || !bankName || !accountNumber || !idType || !idNumber) {
     throw new Error('All required fields must be provided');
   }
 
@@ -816,6 +837,7 @@ export const submitAgentApplication = async (applicationData) => {
   formData.append('phone_number', phoneNumber);
   formData.append('email', email);
   formData.append('address', address);
+  formData.append('state', state);
   formData.append('bank_name', bankName);
   formData.append('account_number', accountNumber);
   formData.append('id_type', idType);
@@ -882,19 +904,26 @@ export const getAgentReferralEarnings = async (params = {}) => {
   return apiRequest(endpoint, { method: 'GET' });
 };
 
-// Referral payment status & pricing (GET)
-export const getReferralPaymentStatus = async () => {
-  return apiRequest(`/auth/agents/referral-payment/`, { method: 'GET' });
+// Get referral info (FREE - no payment needed)
+export const getReferralInfo = async () => {
+  return apiRequest(`/auth/agents/referral-info/`, { method: 'GET' });
 };
 
-// Purchase or extend referral link (POST)
-export const purchaseOrExtendReferralLink = async ({ payment_duration }) => {
-  if (!payment_duration) throw new Error('payment_duration is required');
-  return apiRequest(`/auth/agents/referral-payment/`, {
+// Legacy method for backward compatibility
+export const getReferralPaymentStatus = async () => {
+  console.log('⚠️ getReferralPaymentStatus is deprecated, using getReferralInfo instead');
+  return getReferralInfo();
+};
+
+// Validate referral code (for registration)
+export const validateReferralCode = async (referralCode) => {
+  return apiRequest(`/auth/agents/validate-referral-code/`, {
     method: 'POST',
-    body: JSON.stringify({ payment_duration })
+    body: JSON.stringify({ referral_code: referralCode })
   });
 };
+
+// Removed: purchaseOrExtendReferralLink - referral codes are now FREE!
 
 // List users referred by me
 export const listReferredUsers = async (params = {}) => {
@@ -905,6 +934,8 @@ export const listReferredUsers = async (params = {}) => {
 
 // Agent registers a new user
 export const agentRegisterUser = async (payload) => {
+  console.log('🔍 agentRegisterUser - Received payload:', payload);
+  
   // Basic validation (backend also validates and returns field-specific 400s)
   const baseRequired = ['email', 'password', 'full_name', 'phone_number'];
   const baseMissing = baseRequired.filter((k) => !(k in payload) || payload[k] === '' || payload[k] == null);
@@ -955,6 +986,7 @@ export const agentRegisterUser = async (payload) => {
 
   // If we still have a File present (Cloudinary not used), construct multipart with flattened nested keys
   if (shouldSendMultipart && intendsAgent && payload?.agent_application?.id_document instanceof File) {
+    console.log('🔍 agentRegisterUser - Using FormData (multipart) submission');
     const fd = new FormData();
     // Base fields
     fd.append('email', String(payload.email ?? ''));
@@ -965,6 +997,10 @@ export const agentRegisterUser = async (payload) => {
     if (payload.phone_number != null) fd.append('phone_number', String(payload.phone_number));
     if (payload.company_name != null) fd.append('company_name', String(payload.company_name));
     if (payload.country != null) fd.append('country', String(payload.country));
+    if (payload.state != null) {
+      console.log('🔍 agentRegisterUser - Adding state to FormData:', payload.state);
+      fd.append('state', String(payload.state));
+    }
     if (payload.business_type != null) fd.append('business_type', String(payload.business_type));
     if (payload.referral_code != null && payload.referral_code !== '') fd.append('referral_code', String(payload.referral_code));
     if (payload.is_agent != null) fd.append('is_agent', String(payload.is_agent));
@@ -975,6 +1011,7 @@ export const agentRegisterUser = async (payload) => {
     if (aa.last_name != null) fd.append('agent_application.last_name', String(aa.last_name));
     if (aa.phone_number != null) fd.append('agent_application.phone_number', String(aa.phone_number));
     if (aa.address != null) fd.append('agent_application.address', String(aa.address));
+    if (aa.state != null) fd.append('agent_application.state', String(aa.state));
     if (aa.bank_name != null) fd.append('agent_application.bank_name', String(aa.bank_name));
     if (aa.account_number != null) fd.append('agent_application.account_number', String(aa.account_number));
     if (aa.id_type != null) fd.append('agent_application.id_type', String(aa.id_type));
@@ -989,6 +1026,8 @@ export const agentRegisterUser = async (payload) => {
   }
 
   // Default: JSON submission
+  console.log('🔍 agentRegisterUser - Using JSON submission');
+  console.log('🔍 agentRegisterUser - Final JSON payload:', jsonPayload);
   // Do not leak temporary client-only fields
   if (jsonPayload.cloudinary) {
     delete jsonPayload.cloudinary;

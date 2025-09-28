@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
  * - withText: whether to render brand text next to logo (default: false)
  * - textClassName: classes for the brand text
  */
-const Logo = ({ height = 'h-16', className = '', to = '/', withText = false, textClassName = 'ml-2 text-xl font-bold text-gray-900 whitespace-nowrap' }) => {
+const Logo = ({ height = 'h-20', className = '', to = '/', withText = false, textClassName = 'ml-2 text-xl font-bold text-gray-900 whitespace-nowrap' }) => {
   const img = (
     <img
       src="/images/logo.svg?v=1"

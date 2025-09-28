@@ -13,6 +13,39 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Increased base font size for better readability */
+  font-size: 16px;
+}
+
+/* Increase base font sizes for better readability */
+body {
+  font-size: 16px;
+}
+
+/* Ensure all text elements have adequate minimum sizes */
+.text-xs { font-size: 0.875rem !important; } /* 14px instead of 12px */
+.text-sm { font-size: 1rem !important; }     /* 16px instead of 14px */
+.text-base { font-size: 1.125rem !important; } /* 18px instead of 16px */
+.text-lg { font-size: 1.25rem !important; }  /* 20px instead of 18px */
+.text-xl { font-size: 1.375rem !important; } /* 22px instead of 20px */
+.text-2xl { font-size: 1.625rem !important; } /* 26px instead of 24px */
+.text-3xl { font-size: 2rem !important; }    /* 32px instead of 30px */
+.text-4xl { font-size: 2.5rem !important; }  /* 40px instead of 36px */
+.text-5xl { font-size: 3.25rem !important; } /* 52px instead of 48px */
+.text-6xl { font-size: 4rem !important; }    /* 64px instead of 60px */
+
+/* Mobile-specific font size adjustments (smaller fonts for mobile) */
+@media (max-width: 768px) {
+  .text-xs { font-size: 0.75rem !important; }  /* 12px for mobile */
+  .text-sm { font-size: 0.875rem !important; } /* 14px for mobile */
+  .text-base { font-size: 1rem !important; }   /* 16px for mobile */
+  .text-lg { font-size: 1.125rem !important; } /* 18px for mobile */
+  .text-xl { font-size: 1.25rem !important; }  /* 20px for mobile */
+  .text-2xl { font-size: 1.5rem !important; }  /* 24px for mobile */
+  .text-3xl { font-size: 1.875rem !important; } /* 30px for mobile */
+  .text-4xl { font-size: 2.25rem !important; } /* 36px for mobile */
+  .text-5xl { font-size: 3rem !important; }    /* 48px for mobile */
+  .text-6xl { font-size: 3.75rem !important; } /* 60px for mobile */
 }
 
 /* Scoped LTR enforcement for Add Product form */
@@ -49,4 +82,72 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #A0AEC0;
+}
+
+/* Fix dropdown direction - ensure all select elements open downward */
+select {
+  /* Force native dropdown behavior */
+  appearance: menulist !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  
+  /* Ensure dropdown opens downward */
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Ensure dropdown options appear below the select */
+select option {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Fix for browsers that might flip dropdowns */
+select:focus {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Specific fix for form selects */
+.dashboard-form select,
+form select {
+  appearance: menulist !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+}
+
+/* Nigeria States Dropdown - Force downward opening */
+.nigeria-states-dropdown {
+  position: relative !important;
+}
+
+.nigeria-states-dropdown select {
+  /* Override any conflicting styles */
+  appearance: menulist !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  
+  /* Force dropdown positioning */
+  position: relative !important;
+  z-index: 50 !important;
+  
+  /* Ensure proper sizing */
+  min-height: 42px !important;
+  
+  /* Force dropdown to open downward by ensuring enough space */
+  margin-bottom: 200px !important;
+  padding-bottom: 0 !important;
+}
+
+/* Reset margin for the container to prevent layout issues */
+.nigeria-states-dropdown {
+  margin-bottom: 0 !important;
+  overflow: visible !important;
+}
+
+/* Ensure dropdown list appears below */
+.nigeria-states-dropdown select:focus,
+.nigeria-states-dropdown select:active {
+  position: relative !important;
+  z-index: 100 !important;
 }

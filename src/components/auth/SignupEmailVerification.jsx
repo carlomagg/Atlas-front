@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import AuthModal from './AuthModal';
 import { registerInitial } from '../../services/authApi';
 
-const SignupEmailVerification = ({ onContinue, onBack }) => {
+const SignupEmailVerification = ({ onContinue, onBack, referralCode }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -83,6 +83,25 @@ const SignupEmailVerification = ({ onContinue, onBack }) => {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 lg:mb-8">Create Account</h2>
 
           {renderStepIndicator()}
+
+          {/* Referral Code Indicator */}
+          {referralCode && (
+            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  🎉 You're registering with referral code: <span className="font-mono font-bold">{referralCode}</span>
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  Complete registration to connect with your referring agent!
+                </p>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
             <div>

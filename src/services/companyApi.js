@@ -302,6 +302,104 @@ export const getCompanyActivityLog = async () => {
   }
 };
 
+// GET /api/companies/companies/me/ - Load company with addresses array
+export async function getMyCompanyWithAddresses() {
+  const token = authStorage.getToken();
+  if (!token) throw new Error('Authentication required');
+  
+  const res = await fetch(`${BASE_URL}/companies/companies/me/`, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: {
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!res.ok) {
+    if (res.status === 404) {
+      return null; // No company profile yet
+    }
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+  }
+  
+  return res.json();
+}
+
+// PATCH /api/companies/companies/me/ - Bulk replace addresses array
+export async function updateMyCompanyWithAddresses(companyData) {
+  const token = authStorage.getToken();
+  if (!token) throw new Error('Authentication required');
+  
+  console.log('Updating company data via /companies/companies/me/');
+  console.log('Company update payload addresses:', companyData.addresses);
+  console.log('Final API payload addresses:', companyData.addresses);
+  
+  const res = await fetch(`${BASE_URL}/companies/companies/me/`, {
+    method: 'PATCH',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(companyData)
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error('Company update failed:', {
+      status: res.status,
+      statusText: res.statusText,
+      errorData,
+      requestPayload: companyData
+    });
+    
+    // Extract detailed error message
+    let errorMessage = errorData.message || errorData.detail || `HTTP error! status: ${res.status}`;
+    
+    // Handle different error formats
+    if (errorData.errors) {
+      console.log('Raw errors array:', errorData.errors);
+      
+      if (Array.isArray(errorData.errors)) {
+        // Handle array of error objects
+        const errorMessages = errorData.errors.map((error, index) => {
+          if (typeof error === 'string') {
+            return error;
+          } else if (typeof error === 'object') {
+            // Log the full error object to see its structure
+            console.log(`Error object ${index}:`, error);
+            console.log(`Error object ${index} keys:`, Object.keys(error));
+            console.log(`Error object ${index} values:`, Object.values(error));
+            console.log(`Error object ${index} JSON:`, JSON.stringify(error, null, 2));
+            return error.message || error.detail || error.error || JSON.stringify(error);
+          }
+          return String(error);
+        });
+        errorMessage += ` - Errors: ${errorMessages.join('; ')}`;
+      } else if (typeof errorData.errors === 'object') {
+        // Handle object with field-specific errors
+        const fieldErrors = Object.entries(errorData.errors)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('; ');
+        errorMessage += ` - Field errors: ${fieldErrors}`;
+      }
+    }
+    
+    throw new Error(errorMessage);
+  }
+  
+  const result = await res.json();
+  console.log('Company update successful:', result);
+  return result;
+}
+
 export default {
   getCompanyInfo,
   updateCompanyInfo,
@@ -315,6 +413,8 @@ export default {
   getCompanyActivityLog,
   listCompanies,
   getMyCompany,
+  getMyCompanyWithAddresses,
+  updateMyCompanyWithAddresses,
   createCompany,
   updateCompany,
   updateCompanyJson
