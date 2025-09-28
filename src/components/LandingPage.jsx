@@ -1317,19 +1317,19 @@ const LandingPage = () => {
 
       {/* Header Navigation */}
       <header className="w-full bg-white shadow-sm">
-        <div className="mx-auto px-2 sm:px-4 py-5 max-w-none flex items-center justify-start flex-nowrap">
-          <div className="flex items-center space-x-2 sm:space-x-4 lg:space-x-8 flex-nowrap min-w-0">
-            {/* Logo - Extra compact on mobile to prevent overlap */}
+        <div className="mx-auto px-2 sm:px-4 py-3 sm:py-4 lg:py-5 max-w-none flex items-center justify-start">
+          <div className="flex items-center space-x-1 sm:space-x-1 md:space-x-2 lg:space-x-2 flex-shrink min-w-0">
+            {/* Logo - Responsive sizing */}
             <div className="flex-shrink-0">
-              <Logo to="/" height="h-10 sm:h-14 md:h-20 lg:h-24" />
+              <Logo to="/" height="h-8 sm:h-10 md:h-12 lg:h-16 xl:h-20" />
             </div>
 
-            {/* Product text */}
-            <div className="hidden xl:flex items-center">
-              <span className="text-gray-700">Product</span>
+            {/* Product text - Only show on very large screens */}
+            <div className="hidden 2xl:flex items-center">
+              <span className="text-gray-700 text-sm">Product</span>
             </div>
 
-            <div className="hidden md:block relative flex-none w-[120px] sm:w-[140px] lg:w-[180px] xl:w-[220px] ml-1 sm:ml-2 lg:ml-3 mr-1 sm:mr-2">
+            <div className="hidden md:block relative flex-none w-[160px] sm:w-[180px] md:w-[200px] lg:w-[220px] xl:w-[240px] ml-8 mr-2">
               <input
                 type="text"
                 value={searchTerm}
@@ -1470,18 +1470,18 @@ const LandingPage = () => {
 
           </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-nowrap shrink-0 ml-2 sm:ml-3">
-            {/* Mobile Atlas ID and Account - Ultra compact for mobile */}
-            <div className="flex lg:hidden items-center min-w-0">
-              {/* Mobile Atlas ID - Ultra compact layout */}
-              <div className="text-xs min-w-0 max-w-[120px]">
+          <div className="flex items-center space-x-3 sm:space-x-3 md:space-x-4 flex-shrink-0 ml-5">
+            {/* Mobile Atlas ID and Account - Compact for mobile */}
+            <div className="flex lg:hidden items-center min-w-0 max-w-[100px] sm:max-w-[120px]">
+              {/* Mobile Atlas ID - Compact layout */}
+              <div className="text-xs min-w-0 flex-shrink">
                 {isLoading ? (
                   <span className="animate-pulse text-gray-700 text-xs">Loading...</span>
                 ) : (
                   <div className="flex flex-col items-end min-w-0">
-                    <div className="text-gray-700 font-medium text-xs whitespace-nowrap">Atlas-WD</div>
+                    <div className="text-gray-700 font-medium text-xs whitespace-nowrap hidden sm:block">Atlas-WD</div>
                     <div className="flex items-center space-x-1 min-w-0">
-                      <span className="text-gray-600 text-xs truncate max-w-[80px]">
+                      <span className="text-gray-600 text-xs truncate max-w-[60px] sm:max-w-[80px]">
                         {isLoggedIn && userAtlasId ? `#${userAtlasId}` : 'Guest'}
                       </span>
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
@@ -1758,49 +1758,49 @@ const LandingPage = () => {
 
             
 
-            {/* Desktop Navigation - Show with text on larger screens */}
-            <button onClick={() => navigate('/dashboard/message-guide?tab=inbox')} className="relative hidden md:flex items-center space-x-2 text-gray-700 hover:text-[#027DDB] transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Desktop Navigation - Responsive text display */}
+            <button onClick={() => navigate('/dashboard/message-guide?tab=inbox')} className="relative hidden md:flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors flex-shrink-0">
+              <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
-              <span className="hidden lg:inline text-lg">Messages</span>
+              <span className="hidden xl:inline" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>Messages</span>
               {isLoggedIn && notif.unread_messages > 0 && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold flex items-center justify-center">
+                <span className="ml-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-semibold flex items-center justify-center">
                   {Math.min(99, notif.unread_messages)}
                 </span>
               )}
             </button>
-            <div className="relative hidden md:flex items-center space-x-2 text-gray-700 whitespace-nowrap">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="relative hidden md:flex items-center space-x-1 text-gray-700 whitespace-nowrap flex-shrink-0">
+              <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <span className="hidden lg:inline text-lg">Product request</span>
+              <span className="hidden xl:inline" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>Product request</span>
               {isLoggedIn && prTotalCount > 0 && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold flex items-center justify-center">
+                <span className="ml-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-semibold flex items-center justify-center">
                   {Math.min(99, prTotalCount)}
                 </span>
               )}
             </div>
-            <Link to="/video-channel" className="hidden md:flex items-center space-x-2 text-gray-700 hover:text-[#027DDB] transition-colors whitespace-nowrap">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link to="/video-channel" className="hidden md:flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors whitespace-nowrap flex-shrink-0">
+              <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              <span className="hidden lg:inline text-lg">Video Channel</span>
+              <span className="hidden xl:inline" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>Video Channel</span>
             </Link>
 
             {/* Account Dropdown - Tablet/Desktop */}
-            <div className="relative hidden md:flex lg:hidden items-center account-dropdown">
+            <div className="relative hidden md:flex lg:hidden items-center account-dropdown flex-shrink-0">
               <button
                 onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
                 aria-haspopup="menu"
                 aria-expanded={isAccountDropdownOpen ? 'true' : 'false'}
-                className="px-2 py-1 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-2 shrink-0"
+                className="px-1 py-1 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1 flex-shrink-0"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-lg font-medium">Account</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>Account</span>
+                <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -1874,28 +1874,28 @@ const LandingPage = () => {
             </div>
 
             {/* Atlas-WD ID and Verification Status - Dynamic from backend */}
-            <div className="hidden lg:block text-sm">
+            <div className="hidden lg:block text-[10px] xl:text-[11px] flex-shrink-0 min-w-0 max-w-[200px] xl:max-w-[250px]">
               {isLoading ? (
-                <span className="animate-pulse text-gray-700">Loading...</span>
+                <span className="animate-pulse text-gray-700 text-xs">Loading...</span>
               ) : (
-                <div className="flex flex-col items-end space-y-1">
+                <div className="flex flex-col items-end space-y-1 min-w-0">
                   <div className="text-gray-700 hidden">
                     {/* Company label hidden per request */}
                     <span className="font-medium">Atlas-WD LLC</span>
                   </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    {/* Show Atlas ID only if logged in, otherwise show generic text */}
-                    <span className="text-gray-600 text-xs">
+                  <div className="flex items-center space-x-2 whitespace-nowrap min-w-0">
+                    {/* ID value with prefix, slightly smaller */}
+                    <span className="text-gray-700 text-[9px] xl:text-[10px] font-medium">
                       {isLoggedIn && userAtlasId ? `ATLAS ID: ${userAtlasId}` : 'Guest User'}
                     </span>
-                    {/* Always show verification status */}
-                    <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    {/* Status badge (smaller) */}
+                    <div className={`flex items-center space-x-1 px-1 py-[1px] rounded-full text-[10px] xl:text-[11px] font-medium flex-shrink-0 ${
                       isLoggedIn ? getStatusStyling(businessVerificationStatus).bgColor : 'bg-gray-100 text-gray-800'
                     }`}>
-                      <div className={`w-2 h-2 rounded-full ${
+                      <div className={`w-1 h-1 rounded-full ${
                         isLoggedIn ? getStatusStyling(businessVerificationStatus).dotColor : 'bg-gray-400'
                       }`}></div>
-                      <span>{isLoggedIn ? getStatusStyling(businessVerificationStatus).label : 'Guest'}</span>
+                      <span className="text-[10px] xl:text-[11px]">{isLoggedIn ? getStatusStyling(businessVerificationStatus).label : 'Guest'}</span>
                     </div>
                   </div>
                 </div>
@@ -2175,13 +2175,14 @@ const LandingPage = () => {
                 onMouseLeave={delayedCloseMega}
               >
                 <button
-                  className={`flex items-center space-x-2 py-3 text-lg transition-colors ${isMegaOpen ? 'text-[#027DDB]' : 'text-gray-700 hover:text-[#027DDB]'}`}
+                  className={`flex items-center space-x-2 py-3 transition-colors ${isMegaOpen ? 'text-[#027DDB]' : 'text-gray-700 hover:text-[#027DDB]'}`}
                   onClick={() => openMega()}
+                  style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
-                  <span className="font-medium">{t('allCategories')}</span>
+                  <span>{t('allCategories')}</span>
                 </button>
                 {isMegaOpen && (
                   <div
@@ -2218,8 +2219,9 @@ const LandingPage = () => {
                                 return (
                                   <div key={rootCategory.id} className="space-y-4">
                                     <div
-                                      className="font-bold text-lg text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
+                                      className="font-bold text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
                                       onClick={() => onSelectCategory?.(rootCategory.id, rootCategory.name)}
+                                      style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
                                     >
                                       {rootCategory.name}
                                     </div>
@@ -2239,13 +2241,14 @@ const LandingPage = () => {
               <Link
                 to="/become-agent"
                 onClick={handleBecomeAgentClick}
-                className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors"
+                className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors"
+                style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
               >
                 {t('becomeAgent')}
               </Link>
-              <Link to="/top-ranking" className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('topRanking')}</Link>
+              <Link to="/top-ranking" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>{t('topRanking')}</Link>
               <div className="relative group">
-                <button className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1">
+                <button className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center space-x-1" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>
                   <span>{t('app')}</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -2276,11 +2279,12 @@ const LandingPage = () => {
                   </a>
                 </div>
               </div>
-              <Link to={isLoggedIn ? "/dashboard/reports?section=faq" : "/help"} className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('help')}</Link>
+              <Link to={isLoggedIn ? "/dashboard/reports?section=faq" : "/help"} className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>{t('help')}</Link>
               <div className="relative business-type-dropdown">
                 <button 
                   onClick={() => setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)}
-                  className="py-3 text-lg flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                  className="py-3 flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                  style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
                 >
                   <span>{currentBusinessType}</span>
                   <svg className={`w-4 h-4 transition-transform ${isBusinessTypeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2304,11 +2308,12 @@ const LandingPage = () => {
                   </div>
                 )}
               </div>
-              <Link to="/dashboard/message-guide?tab=product" className="py-3 text-lg text-gray-700 hover:text-[#027DDB] transition-colors">{t('sourceRequest')}</Link>
+              <Link to="/dashboard/message-guide?tab=product" className="py-3 text-gray-700 hover:text-[#027DDB] transition-colors" style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}>{t('sourceRequest')}</Link>
               <div className="relative ml-8 language-dropdown">
                 <button 
                   onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                  className="py-3 text-lg flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                  className="py-3 flex items-center space-x-1 text-gray-700 hover:text-[#027DDB] transition-colors"
+                  style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
                 >
                   <span>{currentLanguage}</span>
                   <svg className={`w-4 h-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2439,7 +2444,8 @@ const LandingPage = () => {
                         onMouseLeave={() => { if (typeof window !== 'undefined' && window.innerWidth >= 1024) { delayedCloseSideMega(); } }}
                     >
                       <button
-                        className="w-full text-left block py-2 px-3 rounded-md text-lg text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
+                        className="w-full text-left block py-2 px-3 rounded-md text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
+                        style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
                         onClick={() => {
                           if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                             setIsMobileCategoriesOpen(true);
@@ -3148,8 +3154,9 @@ function CategoryNode({ node, depth, onSelectCategory }) {
     return (
       <div className="space-y-4">
         <div
-          className="font-bold text-lg text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
+          className="font-bold text-[#027DDB] cursor-pointer hover:text-blue-700 transition-colors border-b border-gray-200 pb-2"
           onClick={() => onSelectCategory?.(node.id, node.name)}
+          style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
         >
           {node.name}
         </div>
@@ -3158,12 +3165,13 @@ function CategoryNode({ node, depth, onSelectCategory }) {
             {node.children.map((child) => (
               <li key={child.id}>
                 <div
-                  className={`text-sm cursor-pointer transition-colors ${
+                  className={`cursor-pointer transition-colors ${
                     Array.isArray(child.children) && child.children.length > 0 
                       ? 'text-[#027DDB] hover:text-blue-700 font-medium' 
                       : 'text-gray-700 hover:text-[#027DDB]'
                   }`}
                   onClick={() => onSelectCategory?.(child.id, child.name)}
+                  style={{fontSize: 'clamp(12px, 0.875rem + 0.1vw, 16px)'}}
                 >
                   {child.name}
                 </div>

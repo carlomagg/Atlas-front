@@ -312,7 +312,7 @@ export default function CategoryProducts() {
                       }}
                       className="flex-1 px-3 py-2 bg-[#027DDB] text-white text-xs font-medium rounded-lg hover:bg-[#0266b3] transition-colors"
                     >
-                      {t('contactSeller') || 'Contact Seller'}
+                      Contact Seller
                     </button>
                     
                     <button
@@ -322,7 +322,7 @@ export default function CategoryProducts() {
                       }}
                       className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      {t('leaveMessage') || 'Leave a Message'}
+                      Leave A Message
                     </button>
                   </div>
                 </div>
