@@ -13,6 +13,7 @@ export default defineConfig({
     ],
   },
   server: {
+    host: true, // allow LAN access in dev
     proxy: {
       '/api': {
         // Use local backend during development:
@@ -40,5 +41,12 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  preview: {
+    host: true, // allow binding on network
+    // Whitelist the hostname(s) you use to access the preview
+    allowedHosts: ['atlaswd.com', 'www.atlaswd.com'],
+    // optional: set a fixed port if you need
+    // port: 5173,
   }
 })
