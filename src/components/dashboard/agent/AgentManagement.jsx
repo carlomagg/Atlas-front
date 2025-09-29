@@ -668,7 +668,14 @@ const AgentRegisterUserSection = () => {
           <select name="business_type" value={form.business_type} onChange={onChange} className="w-full px-3 py-2 border rounded" required>
             <option value="">Select Business Type</option>
             {BUSINESS_TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t === 'ASSOCIATION' ? 'Association' :
+                 t === 'RETAILER' ? 'Retailer' :
+                 t === 'MANUFACTURER' ? 'Manufacturer' :
+                 t === 'DISTRIBUTOR' ? 'Distributor' :
+                 t === 'AGENT' ? 'Agent' :
+                 t === 'SERVICE_PROVIDER' ? 'Service Provider' : t}
+              </option>
             ))}
           </select>
         </div>

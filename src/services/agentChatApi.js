@@ -4,7 +4,7 @@
 import { API_BASE_URL } from '../utils/apiConfig';
 import { authStorage } from './authApi';
 
-const BASE_URL = '/api/messages';
+const BASE_URL = `${API_BASE_URL}/messages`;
 
 // Helper to read a cookie value by name
 const getCookie = (name) => {

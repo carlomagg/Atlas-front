@@ -590,7 +590,7 @@ export const fetchSellerProducts = async (sellerId, params = {}) => {
 
 // Business Type Filter
 // Endpoint: GET /api/products/by-business-type/
-// Filters products by seller business type: ASSOCIATION, RETAILER, MANUFACTURER, DISTRIBUTOR, AGENT
+// Filters products by seller business type: ASSOCIATION, RETAILER, MANUFACTURER, DISTRIBUTOR, AGENT, SERVICE_PROVIDER
 export const fetchProductsByBusinessType = async (businessType, params = {}) => {
   const queryParams = new URLSearchParams({
     business_type: businessType,

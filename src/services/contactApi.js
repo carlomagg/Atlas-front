@@ -13,7 +13,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
  */
 export const submitContactForm = async (contactData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/admin/contact/`, {
+    const response = await fetch(`${API_BASE_URL}/admin/contact/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ export const submitContactForm = async (contactData) => {
  */
 export const getContactSubmissions = async (status = 'pending', token) => {
   try {
-    const url = new URL(`${API_BASE_URL}/api/admin/contact/submissions/`);
+    const url = new URL(`${API_BASE_URL}/admin/contact/submissions/`);
     if (status) {
       url.searchParams.append('status', status);
     }
@@ -77,7 +77,7 @@ export const getContactSubmissions = async (status = 'pending', token) => {
  */
 export const updateContactSubmission = async (submissionId, updateData, token) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/admin/contact/submissions/${submissionId}/`, {
+    const response = await fetch(`${API_BASE_URL}/admin/contact/submissions/${submissionId}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export const getBusinessPurposeDisplayText = (keys) => {
  */
 export const subscribeToNewsletter = async (email) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/subscribe/`, {
+    const response = await fetch(`${API_BASE_URL}/auth/subscribe/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ export const subscribeToNewsletter = async (email) => {
  */
 export const unsubscribeFromNewsletter = async (email) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/accounts/unsubscribe/`, {
+    const response = await fetch(`${API_BASE_URL}/accounts/unsubscribe/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

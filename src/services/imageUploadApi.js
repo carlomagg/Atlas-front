@@ -127,7 +127,7 @@ export const uploadMultipleRichTextImages = async (files, options = {}) => {
  */
 export const deleteRichTextImage = async (imageUrl) => {
   try {
-    const response = await authApiRequest('/api/upload/rich-text-image/delete/', {
+    const response = await authApiRequest('/upload/rich-text-image/delete/', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ export const deleteRichTextImage = async (imageUrl) => {
  */
 export const getRichTextImageUploadConfig = async () => {
   try {
-    const response = await authApiRequest('/api/upload/rich-text-image/config/', {
+    const response = await authApiRequest('/upload/rich-text-image/config/', {
       method: 'GET',
     });
 

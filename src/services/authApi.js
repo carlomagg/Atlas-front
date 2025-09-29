@@ -5,7 +5,7 @@ const BASE_URL = RAW_API_BASE ? RAW_API_BASE.replace(/\/$/, '') : '/api';  // e.
 
 // Enum constants matching the API requirements
 export const TITLE_OPTIONS = ['MR', 'MRS', 'MS', 'MISS', 'DR'];
-export const BUSINESS_TYPE_OPTIONS = ['ASSOCIATION', 'RETAILER', 'MANUFACTURER', 'DISTRIBUTOR', 'AGENT'];
+export const BUSINESS_TYPE_OPTIONS = ['ASSOCIATION', 'RETAILER', 'MANUFACTURER', 'DISTRIBUTOR', 'AGENT', 'SERVICE_PROVIDER'];
 
 // Country codes (ISO 3166-1 alpha-2)
 export const COUNTRY_OPTIONS = [

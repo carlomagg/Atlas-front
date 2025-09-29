@@ -259,7 +259,8 @@ const LandingPage = () => {
     { code: 'ASSOCIATION', name: t('association') || 'Association' },
     { code: 'RETAILER', name: t('retailer') || 'Retailer' },
     { code: 'MANUFACTURER', name: t('manufacturer') || 'Manufacturer' },
-    { code: 'DISTRIBUTOR', name: t('distributor') || 'Distributor' }
+    { code: 'DISTRIBUTOR', name: t('distributor') || 'Distributor' },
+    { code: 'SERVICE_PROVIDER', name: 'Service Provider' }
     // Removed AGENT option as requested
   ];
   
@@ -2871,6 +2872,7 @@ const LandingPage = () => {
                       <option value="MANUFACTURER">Manufacturer</option>
                       <option value="DISTRIBUTOR">Distributor</option>
                       <option value="AGENT">Agent</option>
+                      <option value="SERVICE_PROVIDER">Service Provider</option>
                     </select>
                   </div>
                 </div>

@@ -32,6 +32,16 @@ const CompleteRegistration = ({ email, referralCode, onComplete, onBack }) => {
   const countries = COUNTRY_OPTIONS;
   const titles = TITLE_OPTIONS;
   const businessTypes = BUSINESS_TYPE_OPTIONS;
+  
+  // Business type display mapping
+  const businessTypeLabels = {
+    'ASSOCIATION': 'Association',
+    'RETAILER': 'Retailer',
+    'MANUFACTURER': 'Manufacturer',
+    'DISTRIBUTOR': 'Distributor',
+    'AGENT': 'Agent',
+    'SERVICE_PROVIDER': 'Service Provider'
+  };
 
   const benefits = [
     'Seamless Supply, Simply Reliable',
@@ -412,7 +422,7 @@ const CompleteRegistration = ({ email, referralCode, onComplete, onBack }) => {
               >
                 <option value="">Please select</option>
                 {businessTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type}>{businessTypeLabels[type] || type}</option>
                 ))}
               </select>
               {errors.businessType && <p className="text-red-500 text-xs mt-1">{errors.businessType}</p>}

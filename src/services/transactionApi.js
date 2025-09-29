@@ -1,5 +1,5 @@
 // Transaction API Service for Invoices and Statements
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
@@ -62,7 +62,7 @@ export const invoiceApi = {
   // Get all invoices
   getInvoices: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/invoices/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/invoices/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -74,7 +74,7 @@ export const invoiceApi = {
 
   // Get sent invoices
   getSentInvoices: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/sent/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/sent/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -84,7 +84,7 @@ export const invoiceApi = {
 
   // Get received invoices
   getReceivedInvoices: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/received/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/received/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -94,7 +94,7 @@ export const invoiceApi = {
 
   // Get single invoice
   getInvoice: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -104,7 +104,7 @@ export const invoiceApi = {
 
   // Create invoice
   createInvoice: async (invoiceData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(invoiceData),
@@ -115,7 +115,7 @@ export const invoiceApi = {
 
   // Update invoice
   updateInvoice: async (id, invoiceData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(invoiceData),
@@ -126,7 +126,7 @@ export const invoiceApi = {
 
   // Accept invoice
   acceptInvoice: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/accept/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/accept/`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -136,7 +136,7 @@ export const invoiceApi = {
 
   // Reject invoice
   rejectInvoice: async (id, rejectionReason) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/reject/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/reject/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ rejection_reason: rejectionReason }),
@@ -147,7 +147,7 @@ export const invoiceApi = {
 
   // Delete invoice
   deleteInvoice: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -162,7 +162,7 @@ export const invoiceApi = {
 
   // Get invoice statistics
   getStatistics: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/statistics/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/statistics/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -172,7 +172,7 @@ export const invoiceApi = {
 
   // Get pending actions
   getPendingActions: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/pending_actions/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/pending_actions/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -182,7 +182,7 @@ export const invoiceApi = {
 
   // Update invoice status
   updateInvoiceStatus: async (id, statusData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoices/${id}/update_status/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoices/${id}/update_status/`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(statusData),
@@ -197,7 +197,7 @@ export const statementApi = {
   // List all statements
   getStatements: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/statements/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/statements/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -209,7 +209,7 @@ export const statementApi = {
 
   // Generate new statement
   generateStatement: async (statementData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/generate/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/generate/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(statementData),
@@ -221,7 +221,7 @@ export const statementApi = {
   // View statement history
   getStatementHistory: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/statements/view_history/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/statements/view_history/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -233,7 +233,7 @@ export const statementApi = {
 
   // Get specific statement
   getStatement: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/${id}/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -243,7 +243,7 @@ export const statementApi = {
 
   // Get specific statement with detailed transaction data
   getStatementDetailedView: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/${id}/detailed_view/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/${id}/detailed_view/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -253,7 +253,7 @@ export const statementApi = {
 
   // Update statement
   updateStatement: async (id, statementData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/${id}/`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(statementData),
@@ -264,7 +264,7 @@ export const statementApi = {
 
   // Partial update statement
   patchStatement: async (id, statementData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/${id}/`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(statementData),
@@ -275,7 +275,7 @@ export const statementApi = {
 
   // Delete statement
   deleteStatement: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/statements/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/statements/${id}/`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -291,7 +291,7 @@ export const statementApi = {
   // Search statements
   searchStatements: async (query, params = {}) => {
     const searchParams = new URLSearchParams({ search: query, ...params }).toString();
-    const url = `${API_BASE_URL}/api/transactions/statements/?${searchParams}`;
+    const url = `${API_BASE_URL}/transactions/statements/?${searchParams}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -307,7 +307,7 @@ export const invoiceDocumentApi = {
   // Get all invoice documents (user's documents)
   getInvoiceDocuments: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/invoice-documents/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/invoice-documents/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -319,7 +319,7 @@ export const invoiceDocumentApi = {
 
   // Get single invoice document
   getInvoiceDocument: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/${id}/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -330,7 +330,7 @@ export const invoiceDocumentApi = {
   // Get received invoice documents
   getReceivedInvoiceDocuments: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/invoice-documents/received/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/invoice-documents/received/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -343,7 +343,7 @@ export const invoiceDocumentApi = {
   // Upload single invoice document
   uploadInvoiceDocument: async (formData) => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -358,7 +358,7 @@ export const invoiceDocumentApi = {
   // Batch upload invoice documents
   batchUploadInvoiceDocuments: async (formData) => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/batch_upload/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/batch_upload/`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -371,7 +371,7 @@ export const invoiceDocumentApi = {
 
   // Update invoice document
   updateInvoiceDocument: async (id, documentData) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/${id}/`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(documentData),
@@ -382,7 +382,7 @@ export const invoiceDocumentApi = {
 
   // Update document status
   updateDocumentStatus: async (id, status) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/${id}/update_status/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/${id}/update_status/`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
@@ -393,7 +393,7 @@ export const invoiceDocumentApi = {
 
   // Delete invoice document
   deleteInvoiceDocument: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/invoice-documents/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/invoice-documents/${id}/`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -412,7 +412,7 @@ export const businessApi = {
   // Search verified businesses
   searchBusinesses: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/search/businesses/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/search/businesses/${queryString ? `?${queryString}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -427,7 +427,7 @@ export const businessApi = {
 const walletApi = {
   // Get wallet balance
   getBalance: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/balance/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/balance/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -437,7 +437,7 @@ const walletApi = {
 
   // Deposit to wallet
   deposit: async (amount, callbackUrl) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/deposit/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/deposit/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -451,7 +451,7 @@ const walletApi = {
 
   // Verify wallet deposit
   verifyDeposit: async (reference) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/verify_deposit/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/verify_deposit/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -465,7 +465,7 @@ const walletApi = {
   // Get transaction history
   getTransactions: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/wallet-transactions/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/wallet-transactions/${queryString ? `?${queryString}` : ''}`;
     
     console.log('Fetching transactions from:', url);
     console.log('With params:', params);
@@ -483,8 +483,8 @@ const walletApi = {
 
   // Get deposits only
   getDeposits: async () => {
-    console.log('Fetching deposits from:', `${API_BASE_URL}/api/transactions/wallet-transactions/deposits/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet-transactions/deposits/`, {
+    console.log('Fetching deposits from:', `${API_BASE_URL}/transactions/wallet-transactions/deposits/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet-transactions/deposits/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -497,7 +497,7 @@ const walletApi = {
 
   // Get transaction summary
   getSummary: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet-transactions/summary/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet-transactions/summary/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -507,7 +507,7 @@ const walletApi = {
 
   // Withdrawal functions
   withdraw: async (amount, bankCode, accountNumber, accountName) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/withdraw/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/withdraw/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -523,7 +523,7 @@ const walletApi = {
 
   // Get withdrawal history
   getWithdrawalHistory: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/withdrawal_history/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/withdrawal_history/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -533,7 +533,7 @@ const walletApi = {
 
   // Get available banks
   getBanks: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/banks/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/banks/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -543,7 +543,7 @@ const walletApi = {
 
   // Verify bank account
   verifyAccount: async (accountNumber, bankCode) => {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/wallet/verify_account/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/wallet/verify_account/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -560,8 +560,8 @@ const walletApi = {
 const subscriptionApi = {
   // Get available subscription packages
   getPackages: async () => {
-    console.log('Fetching subscription packages from:', `${API_BASE_URL}/api/transactions/subscription-packages/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/subscription-packages/`, {
+    console.log('Fetching subscription packages from:', `${API_BASE_URL}/transactions/subscription-packages/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscription-packages/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -575,7 +575,7 @@ const subscriptionApi = {
   // Purchase subscription
   purchaseSubscription: async (packageId, paymentMethod, callbackUrl) => {
     console.log('Purchasing subscription:', { packageId, paymentMethod });
-    const response = await fetch(`${API_BASE_URL}/api/transactions/payments/purchase_subscription/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/payments/purchase_subscription/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -593,8 +593,8 @@ const subscriptionApi = {
 
   // Get user subscriptions
   getUserSubscriptions: async () => {
-    console.log('Fetching user subscriptions from:', `${API_BASE_URL}/api/transactions/subscriptions/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/subscriptions/`, {
+    console.log('Fetching user subscriptions from:', `${API_BASE_URL}/transactions/subscriptions/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -607,8 +607,8 @@ const subscriptionApi = {
 
   // Get active subscription
   getActiveSubscription: async () => {
-    console.log('Fetching active subscription from:', `${API_BASE_URL}/api/transactions/subscriptions/active/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/subscriptions/active/`, {
+    console.log('Fetching active subscription from:', `${API_BASE_URL}/transactions/subscriptions/active/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/active/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -622,7 +622,7 @@ const subscriptionApi = {
   // Renew subscription
   renewSubscription: async (subscriptionId) => {
     console.log('Renewing subscription:', subscriptionId);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/subscriptions/${subscriptionId}/renew/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/${subscriptionId}/renew/`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -638,8 +638,8 @@ const subscriptionApi = {
 const dailyBoosterApi = {
   // Get available daily booster packages
   getPackages: async () => {
-    console.log('Fetching daily booster packages from:', `${API_BASE_URL}/api/transactions/daily-booster-packages/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/daily-booster-packages/`, {
+    console.log('Fetching daily booster packages from:', `${API_BASE_URL}/transactions/daily-booster-packages/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/daily-booster-packages/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -667,7 +667,7 @@ const dailyBoosterApi = {
       requestBody.product_id = parseInt(productIdentifier);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/transactions/daily-boosters/purchase/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/daily-boosters/purchase/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(requestBody),
@@ -682,7 +682,7 @@ const dailyBoosterApi = {
   // Get user's daily boosters
   getUserBoosters: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/transactions/daily-boosters/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/transactions/daily-boosters/${queryString ? `?${queryString}` : ''}`;
     
     console.log('Fetching user daily boosters from:', url);
     const response = await fetch(url, {
@@ -698,8 +698,8 @@ const dailyBoosterApi = {
 
   // Get active boosters
   getActiveBoosters: async () => {
-    console.log('Fetching active daily boosters from:', `${API_BASE_URL}/api/transactions/daily-boosters/active_boosters/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/daily-boosters/active_boosters/`, {
+    console.log('Fetching active daily boosters from:', `${API_BASE_URL}/transactions/daily-boosters/active_boosters/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/daily-boosters/active_boosters/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -712,8 +712,8 @@ const dailyBoosterApi = {
 
   // Get user's boostable products (approved products only)
   getMyProducts: async () => {
-    console.log('Fetching user boostable products from:', `${API_BASE_URL}/api/transactions/daily-boosters/my_products/`);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/daily-boosters/my_products/`, {
+    console.log('Fetching user boostable products from:', `${API_BASE_URL}/transactions/daily-boosters/my_products/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/daily-boosters/my_products/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -734,7 +734,7 @@ const dailyBoosterApi = {
   // Verify daily booster payment (for Paystack payments)
   verifyBoosterPayment: async (reference) => {
     console.log('Verifying daily booster payment:', reference);
-    const response = await fetch(`${API_BASE_URL}/api/transactions/daily-boosters/verify_payment/`, {
+    const response = await fetch(`${API_BASE_URL}/transactions/daily-boosters/verify_payment/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -753,8 +753,8 @@ const dailyBoosterApi = {
 const servicesApi = {
   // Get all services overview
   getServicesOverview: async () => {
-    console.log('Fetching services overview from:', `${API_BASE_URL}/api/services/overview/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/overview/`, {
+    console.log('Fetching services overview from:', `${API_BASE_URL}/services/overview/`);
+    const response = await fetch(`${API_BASE_URL}/services/overview/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -769,8 +769,8 @@ const servicesApi = {
 
   // Get IT services
   getITServices: async () => {
-    console.log('Fetching IT services from:', `${API_BASE_URL}/api/services/it-services/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/it-services/`, {
+    console.log('Fetching IT services from:', `${API_BASE_URL}/services/it-services/`);
+    const response = await fetch(`${API_BASE_URL}/services/it-services/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -785,8 +785,8 @@ const servicesApi = {
 
   // Get Media services
   getMediaServices: async () => {
-    console.log('Fetching Media services from:', `${API_BASE_URL}/api/services/media-services/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/media-services/`, {
+    console.log('Fetching Media services from:', `${API_BASE_URL}/services/media-services/`);
+    const response = await fetch(`${API_BASE_URL}/services/media-services/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -802,7 +802,7 @@ const servicesApi = {
   // Get specific IT service
   getITService: async (id) => {
     console.log('Fetching IT service:', id);
-    const response = await fetch(`${API_BASE_URL}/api/services/it-services/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/services/it-services/${id}/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -818,7 +818,7 @@ const servicesApi = {
   // Get specific Media service
   getMediaService: async (id) => {
     console.log('Fetching Media service:', id);
-    const response = await fetch(`${API_BASE_URL}/api/services/media-services/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/services/media-services/${id}/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -834,7 +834,7 @@ const servicesApi = {
   // Book service (contact form)
   bookService: async (serviceType, serviceId, fullName, email, atlasId, message) => {
     console.log('Booking service:', { serviceType, serviceId, fullName, email, atlasId });
-    const response = await fetch(`${API_BASE_URL}/api/services/book/`, {
+    const response = await fetch(`${API_BASE_URL}/services/book/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -858,7 +858,7 @@ const servicesApi = {
   // Pay for service (wallet payment)
   payForService: async (serviceType, serviceId) => {
     console.log('Paying for service:', { serviceType, serviceId });
-    const response = await fetch(`${API_BASE_URL}/api/services/pay/`, {
+    const response = await fetch(`${API_BASE_URL}/services/pay/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -875,8 +875,8 @@ const servicesApi = {
 
   // Check wallet balance for services
   getWalletBalance: async () => {
-    console.log('Fetching wallet balance from:', `${API_BASE_URL}/api/services/wallet-balance/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/wallet-balance/`, {
+    console.log('Fetching wallet balance from:', `${API_BASE_URL}/services/wallet-balance/`);
+    const response = await fetch(`${API_BASE_URL}/services/wallet-balance/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -889,8 +889,8 @@ const servicesApi = {
 
   // Get user's bookings
   getMyBookings: async () => {
-    console.log('Fetching user bookings from:', `${API_BASE_URL}/api/services/my-bookings/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/my-bookings/`, {
+    console.log('Fetching user bookings from:', `${API_BASE_URL}/services/my-bookings/`);
+    const response = await fetch(`${API_BASE_URL}/services/my-bookings/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -904,7 +904,7 @@ const servicesApi = {
   // Get specific user booking
   getMyBooking: async (id) => {
     console.log('Fetching user booking:', id);
-    const response = await fetch(`${API_BASE_URL}/api/services/my-bookings/${id}/`, {
+    const response = await fetch(`${API_BASE_URL}/services/my-bookings/${id}/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -917,8 +917,8 @@ const servicesApi = {
 
   // Get user's booking history (specific history view)
   getMyBookingsHistory: async () => {
-    console.log('Fetching user booking history from:', `${API_BASE_URL}/api/services/my-bookings-history/`);
-    const response = await fetch(`${API_BASE_URL}/api/services/my-bookings-history/`, {
+    console.log('Fetching user booking history from:', `${API_BASE_URL}/services/my-bookings-history/`);
+    const response = await fetch(`${API_BASE_URL}/services/my-bookings-history/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -934,8 +934,8 @@ const servicesApi = {
 const referralPaymentApi = {
   // Get referral info (FREE - no payment needed)
   getReferralInfo: async () => {
-    console.log('Fetching referral info from:', `${API_BASE_URL}/api/auth/agents/referral-info/`);
-    const response = await fetch(`${API_BASE_URL}/api/auth/agents/referral-info/`, {
+    console.log('Fetching referral info from:', `${API_BASE_URL}/auth/agents/referral-info/`);
+    const response = await fetch(`${API_BASE_URL}/auth/agents/referral-info/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -955,7 +955,7 @@ const referralPaymentApi = {
   // Validate referral code (for registration)
   validateReferralCode: async (referralCode) => {
     console.log('Validating referral code:', referralCode);
-    const response = await fetch(`${API_BASE_URL}/api/auth/agents/validate-referral-code/`, {
+    const response = await fetch(`${API_BASE_URL}/auth/agents/validate-referral-code/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -973,8 +973,8 @@ const referralPaymentApi = {
 
   // Get referral statistics
   getReferralStats: async () => {
-    console.log('Fetching referral stats from:', `${API_BASE_URL}/api/auth/agents/referral-stats/`);
-    const response = await fetch(`${API_BASE_URL}/api/auth/agents/referral-stats/`, {
+    console.log('Fetching referral stats from:', `${API_BASE_URL}/auth/agents/referral-stats/`);
+    const response = await fetch(`${API_BASE_URL}/auth/agents/referral-stats/`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -988,7 +988,7 @@ const referralPaymentApi = {
   // Get referral earnings history (subscription-based only)
   getReferralEarnings: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/auth/agents/referral-earnings/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/auth/agents/referral-earnings/${queryString ? `?${queryString}` : ''}`;
     console.log('Fetching referral earnings from:', url);
     
     const response = await fetch(url, {
@@ -1005,7 +1005,7 @@ const referralPaymentApi = {
   // Get referred users with search and filtering
   getReferredUsers: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const url = `${API_BASE_URL}/api/auth/agents/referred-users/${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_BASE_URL}/auth/agents/referred-users/${queryString ? `?${queryString}` : ''}`;
     console.log('Fetching referred users from:', url);
     
     const response = await fetch(url, {

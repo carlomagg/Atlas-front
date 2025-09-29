@@ -1055,8 +1055,8 @@ export default function CompanyPage() {
               </div>
             </div>
 
-            {/* Seller Groups with Products Section */}
-            {sellerOwnGroups.length > 0 && (
+            {/* Seller Groups with Products Section - HIDDEN */}
+            {false && sellerOwnGroups.length > 0 && (
               <div className="bg-white rounded-md shadow-sm border border-slate-200">
                 <div className="px-5 py-3 border-b border-slate-200 text-center">
                   <h2 className="text-2xl md:text-3xl font-bold text-blue-600">Product Groups by {companyName}</h2>
@@ -1173,8 +1173,8 @@ export default function CompanyPage() {
               </div>
             )}
 
-            {/* Grouped Products Section - Tabs Design */}
-            {sellerGroups.length > 0 && (
+            {/* Grouped Products Section - Tabs Design - HIDDEN */}
+            {false && sellerGroups.length > 0 && (
               <div className="bg-white rounded-md shadow-sm border border-slate-200">
                 <div className="px-5 py-3 border-b border-slate-200 text-center">
                   <h2 className="text-2xl md:text-3xl font-bold text-blue-600">Grouped Products from {companyName}</h2>

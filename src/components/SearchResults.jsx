@@ -242,7 +242,8 @@ const SearchResults = () => {
         'ASSOCIATION': 'Association',
         'RETAILER': 'Retailer', 
         'MANUFACTURER': 'Manufacturer',
-        'DISTRIBUTOR': 'Distributor'
+        'DISTRIBUTOR': 'Distributor',
+        'SERVICE_PROVIDER': 'Service Provider'
       };
       filters.push({
         type: 'business',

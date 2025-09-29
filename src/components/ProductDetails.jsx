@@ -900,6 +900,15 @@ export default function ProductDetailsNew() {
   const [prCatError, setPrCatError] = useState('');
   const successRef = useRef(null);
 
+  // Ensure success alert is visible
+  useEffect(() => {
+    if (prSuccess && successRef.current) {
+      try {
+        successRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch {}
+    }
+  }, [prSuccess]);
+
   const resetPR = () => {
     setPrProductName('');
     setPrQuantity('');
@@ -2547,11 +2556,12 @@ export default function ProductDetailsNew() {
                 <label className="block text-sm text-slate-700 mb-1">Business Type</label>
                 <select value={prBusinessType} onChange={(e) => setPrBusinessType(e.target.value)} className="h-10 w-full rounded border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Select</option>
-                  <option value="ASSOCIATION">ASSOCIATION</option>
-                  <option value="RETAILER">RETAILER</option>
-                  <option value="MANUFACTURER">MANUFACTURER</option>
-                  <option value="DISTRIBUTOR">DISTRIBUTOR</option>
-                  <option value="AGENT">AGENT</option>
+                  <option value="ASSOCIATION">Association</option>
+                  <option value="RETAILER">Retailer</option>
+                  <option value="MANUFACTURER">Manufacturer</option>
+                  <option value="DISTRIBUTOR">Distributor</option>
+                  <option value="AGENT">Agent</option>
+                  <option value="SERVICE_PROVIDER">Service Provider</option>
                 </select>
               </div>
               {/* Enums per spec */}
