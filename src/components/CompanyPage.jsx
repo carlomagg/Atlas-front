@@ -9,6 +9,7 @@ import { useMediaLightbox } from './common/MediaLightboxProvider.jsx';
 import { getSellerFeaturedProducts, getSellerProductsByCategory, fetchSellerProducts, getSellerGroupedProducts, getSellerGroupedProductsByGroup, getMyGroupsWithProducts } from '../services/productApi';
 import FeaturedProductCard from './common/FeaturedProductCard';
 import SubsidiaryCompanies from './common/SubsidiaryCompanies';
+import AddressMapLink from './common/AddressMapLink';
 import { getCountryName, getStateDisplay } from '../utils/locationData';
 
 export default function CompanyPage() {
@@ -644,16 +645,13 @@ export default function CompanyPage() {
                             </p>
                             <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded-full">Primary</span>
                           </div>
-                          <div className="text-sm text-slate-900 space-y-1">
-                            <div className="font-medium">
-                              {company.head_office.street_address || company.head_office.street || '—'}
-                            </div>
-                            <div className="text-slate-700">
-                              {(company.head_office.city || '—')}, {(company.head_office.state_region || company.head_office.state || '—')}
-                            </div>
-                            <div className="text-slate-700">
-                              {getCountryName(company.head_office.country) || company.head_office.country || '—'}{company.head_office.postal_code ? `, ${company.head_office.postal_code}` : ''}
-                            </div>
+                          <div>
+                            <AddressMapLink 
+                              address={{
+                                ...company.head_office,
+                                country: getCountryName(company.head_office.country) || company.head_office.country
+                              }}
+                            />
                             {(company.head_office.phone_number || company.head_office.email) && (
                               <div className="pt-2 border-t border-blue-200 mt-2 space-y-1">
                                 {company.head_office.phone_number && (
@@ -695,16 +693,13 @@ export default function CompanyPage() {
                           </div>
                           {company.addresses.filter(a => !a?.is_head_office).map((addr, i) => (
                             <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                              <div className="text-sm text-slate-900 space-y-1">
-                                <div className="font-medium">
-                                  {addr.street_address || addr.street || '—'}
-                                </div>
-                                <div className="text-slate-700">
-                                  {addr.city || '—'}, {addr.state_region || addr.state || '—'}
-                                </div>
-                                <div className="text-slate-700">
-                                  {getCountryName(addr.country) || addr.country || '—'}{addr.postal_code ? `, ${addr.postal_code}` : ''}
-                                </div>
+                              <div>
+                                <AddressMapLink 
+                                  address={{
+                                    ...addr,
+                                    country: getCountryName(addr.country) || addr.country
+                                  }}
+                                />
                                 {(addr.phone_number || addr.email) && (
                                   <div className="pt-2 border-t border-slate-300 mt-2 space-y-1">
                                     {addr.phone_number && (
@@ -742,11 +737,14 @@ export default function CompanyPage() {
                             </svg>
                             <p className="text-sm font-medium text-slate-700">Company Address</p>
                           </div>
-                          <div className="text-sm text-slate-900 space-y-1">
-                            <div className="font-medium">{company.street || '—'}</div>
-                            <div className="text-slate-700">{company.address_city || '—'}, {company.address_state || sellerInfo.state || '—'}</div>
-                            <div className="text-slate-700">{getCountryName(company.address_country) || company.address_country || sellerInfo.country_name || '—'}</div>
-                          </div>
+                          <AddressMapLink 
+                            address={{
+                              street_address: company.street,
+                              city: company.address_city,
+                              state_region: company.address_state || sellerInfo.state,
+                              country: getCountryName(company.address_country) || company.address_country || sellerInfo.country_name
+                            }}
+                          />
                         </div>
                       )}
                     </div>
