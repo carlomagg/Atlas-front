@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authStorage, submitAgentApplication } from '../services/authApi';
+import { searchProductsEnhanced, searchProducts } from '../services/productApi';
+import { getRootCategories } from '../services/categoryApi';
+import { getProductThumb } from '../utils/media';
 import { getErrorMessage } from '../utils/errorUtils';
 import Logo from './common/Logo';
 import GlobalFooter from './common/GlobalFooter';
@@ -28,6 +31,21 @@ const BecomeAgent = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [error, setError] = useState('');
+  
+  // Enhanced search state (like landing page)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestResults, setSuggestResults] = useState([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [rootCategories, setRootCategories] = useState([]);
+  const [searchFilters, setSearchFilters] = useState({
+    category: null,
+    categoryName: '',
+    includeSubcategories: true,
+    businessType: '',
+    minPrice: '',
+    maxPrice: '',
+  });
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -39,6 +57,150 @@ const BecomeAgent = () => {
 
     checkAuth();
   }, []);
+
+  // Load root categories for search suggestions
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const roots = await getRootCategories();
+        if (isMounted) {
+          const data = Array.isArray(roots) ? roots : [];
+          setRootCategories(data);
+        }
+      } catch (e) {
+        console.error('Failed to load root categories for search:', e);
+        if (isMounted) setRootCategories([]);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Enhanced search suggestions (copied from LandingPage)
+  useEffect(() => {
+    const term = (searchTerm || '').trim();
+    if (term.length < 2) {
+      setSuggestResults([]);
+      setSuggestOpen(false);
+      setSuggestLoading(false);
+      return;
+    }
+    setSuggestLoading(true);
+    let active = true;
+    const handle = setTimeout(async () => {
+      try {
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+          ...(searchFilters.businessType && { business_type: searchFilters.businessType }),
+        };
+
+        // Try enhanced search first
+        let resultsArr = [];
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for suggestions, falling back to basic search:', err);
+          try {
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for suggestions:', fallbackErr);
+            resultsArr = [];
+          }
+        }
+
+        if (!active) return;
+        setSuggestResults(resultsArr || []);
+        setSuggestOpen(true);
+      } catch (e) {
+        if (!active) return;
+        setSuggestResults([]);
+        setSuggestOpen(true);
+      } finally {
+        if (active) setSuggestLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [searchTerm, searchFilters]);
+
+  // Close search suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.search-container')) {
+        setSuggestOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Smart search - detect category names and suggest categories (copied from LandingPage)
+  const getCategorySuggestion = (searchTerm) => {
+    if (!searchTerm || !rootCategories) return null;
+    
+    const term = searchTerm.toLowerCase().trim();
+    const matchingCategory = rootCategories.find(cat => 
+      cat.name.toLowerCase().includes(term) || term.includes(cat.name.toLowerCase())
+    );
+    
+    return matchingCategory;
+  };
+
+  // Enhanced search execution (copied from LandingPage)
+  const executeEnhancedSearch = (searchText, additionalFilters = {}) => {
+    if (!searchText?.trim()) return;
+    
+    const filters = { ...searchFilters, ...additionalFilters };
+    const searchParams = new URLSearchParams();
+    
+    // Add search parameters
+    if (searchText.trim()) searchParams.set('q', searchText.trim());
+    if (filters.category) searchParams.set('category', filters.category);
+    if (filters.categoryName) searchParams.set('category_name', filters.categoryName);
+    if (filters.includeSubcategories !== undefined) searchParams.set('include_subcategories', filters.includeSubcategories);
+    if (filters.atlasId) searchParams.set('atlas_id', filters.atlasId);
+    if (filters.minPrice) searchParams.set('min_price', filters.minPrice);
+    if (filters.maxPrice) searchParams.set('max_price', filters.maxPrice);
+    if (filters.businessType) searchParams.set('business_type', filters.businessType);
+    
+    navigate(`/search?${searchParams.toString()}`);
+  };
+
+  // Enhanced search handler
+  const handleEnhancedSearch = (searchText = searchTerm) => {
+    if (!searchText?.trim()) return;
+    
+    // Check if there's a category suggestion for this search term
+    const categorySuggestion = getCategorySuggestion(searchText);
+    
+    // Detect Atlas ID pattern (e.g., ATL0JZTVA8O)
+    const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+    const filters = { ...searchFilters };
+    
+    if (atlasIdPattern.test(searchText.trim())) {
+      filters.atlasId = searchText.trim().toUpperCase();
+      executeEnhancedSearch(searchText.trim(), filters);
+    } else if (categorySuggestion) {
+      // If there's a category suggestion, navigate to category page instead of searching
+      navigate(`/category/${categorySuggestion.id}`);
+      return;
+    } else {
+      executeEnhancedSearch(searchText.trim(), filters);
+    }
+    
+    setSearchTerm('');
+    setSuggestResults([]);
+    setSuggestOpen(false);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -119,29 +281,114 @@ const BecomeAgent = () => {
 
   return (
     <div className="relative w-full min-h-screen bg-[#FAFBFC]">
-      {/* Simple Header Navigation */}
+      {/* Enhanced Header Navigation */}
       <header className="w-full bg-white shadow-sm">
-        <div className="mx-auto px-4 sm:px-6 py-4 max-w-7xl flex items-center justify-between flex-nowrap">
+        <div className="mx-auto px-4 sm:px-6 py-4 max-w-7xl flex items-center justify-between flex-nowrap gap-4">
           {/* Logo - Optimized size for better layout */}
           <div className="flex-shrink-0">
             <Logo to="/" height="h-10 sm:h-14 md:h-20 lg:h-24" />
           </div>
 
-          {/* Page Title */}
-          <div className="hidden md:block">
+          {/* Page Title - Hidden on mobile to save space */}
+          <div className="hidden lg:block">
             <h1 className="text-xl font-semibold text-[#027DDB]">Become an Agent</h1>
           </div>
 
-          {/* Back to Home Link */}
-          <Link
-            to="/"
-            className="flex items-center space-x-2 text-gray-600 hover:text-[#027DDB] transition-colors whitespace-nowrap"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Back to Home</span>
-          </Link>
+          {/* Enhanced Search Bar */}
+          <div className="relative flex-1 max-w-md search-container">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleEnhancedSearch();
+                }
+              }}
+              placeholder="Search products..."
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent text-sm md:text-base"
+            />
+            <button
+              onClick={() => handleEnhancedSearch()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#027DDB] transition-colors"
+            >
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+            {searchTerm.trim().length >= 2 && suggestOpen && (
+              <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <div className="px-3 py-2 text-xs text-gray-500">
+                  {suggestLoading ? 'Searching…' : `Results for "${searchTerm.trim()}"`}
+                </div>
+                <div className="max-h-80 overflow-auto divide-y divide-gray-100">
+                  {/* Category suggestion if search term matches a category */}
+                  {(() => {
+                    const categorySuggestion = getCategorySuggestion(searchTerm.trim());
+                    if (categorySuggestion) {
+                      return (
+                        <div
+                          className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            navigate(`/category/${categorySuggestion.id}`);
+                            setSearchTerm('');
+                            setSuggestOpen(false);
+                          }}
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-blue-800 font-medium">Browse {categorySuggestion.name} Category</div>
+                            <div className="text-xs text-blue-600">View all products in this category</div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Product search results */}
+                  {(!suggestLoading && (!Array.isArray(suggestResults) || suggestResults.length === 0) && !getCategorySuggestion(searchTerm.trim())) && (
+                    <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
+                  )}
+                  {Array.isArray(suggestResults) && suggestResults.map((p) => {
+                    const id = p?.id ?? p?.pk ?? p?.uuid;
+                    const title = (p?.title || p?.name || 'Untitled').toString();
+                    const thumb = getProductThumb(p);
+                    const displayTitle = title.length > 60 ? `${title.slice(0, 57)}…` : title;
+                    return (
+                      <div
+                        key={id || title}
+                        className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (id) navigate(`/product/${id}`);
+                          setSearchTerm('');
+                          setSuggestOpen(false);
+                        }}
+                      >
+                        <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
+                          {thumb ? (
+                            <img src={thumb} alt={title} className="w-10 h-10 object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No img</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-gray-800 truncate">{displayTitle}</div>
+                          <div className="text-xs text-gray-500 truncate">#{id}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Blue accent line */}

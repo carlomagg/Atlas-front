@@ -1,15 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { fetchTopRankingProducts, fetchTopRankingProductsByCategory } from '../services/productApi';
-import { listCategories } from '../services/categoryApi';
+import { Link, useNavigate } from 'react-router-dom';
+import { fetchTopRankingProducts, fetchTopRankingProductsByCategory, searchProductsEnhanced, searchProducts } from '../services/productApi';
+import { listCategories, getRootCategories } from '../services/categoryApi';
+import { getProductThumb } from '../utils/media';
 import ProductCard from './ProductCard';
+import Logo from './common/Logo';
 
 export default function TopRanking() {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [categoryProducts, setCategoryProducts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingCategories, setLoadingCategories] = useState({});
+
+  // Search state (copied from ProductDetails)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestResults, setSuggestResults] = useState([]);
+  const [rootCategories, setRootCategories] = useState([]);
+  const [searchFilters, setSearchFilters] = useState({
+    category: null,
+    categoryName: '',
+    includeSubcategories: true,
+    businessType: '',
+    minPrice: '',
+    maxPrice: '',
+  });
+  
+  // Mobile search state (enhanced like landing page)
+  const [mobileSearchTerm, setMobileSearchTerm] = useState('');
+  const [mobileSuggestResults, setMobileSuggestResults] = useState([]);
+  const [mobileSuggestLoading, setMobileSuggestLoading] = useState(false);
 
   const productsPerCategory = 12; // Show 12 products per category initially
 
@@ -75,6 +98,190 @@ export default function TopRanking() {
     loadCategoriesAndProducts();
   }, []);
 
+
+  // Mobile search suggestions (copied from LandingPage)
+  useEffect(() => {
+    const term = (mobileSearchTerm || '').trim();
+    if (term.length < 2) {
+      setMobileSuggestResults([]);
+      setMobileSuggestLoading(false);
+      return;
+    }
+    setMobileSuggestLoading(true);
+    let active = true;
+    const handle = setTimeout(async () => {
+      try {
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+          ...(searchFilters.businessType && { business_type: searchFilters.businessType }),
+        };
+
+        // Try enhanced search first
+        let resultsArr = [];
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for mobile suggestions, falling back to basic search:', err);
+          try {
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for mobile suggestions:', fallbackErr);
+            resultsArr = [];
+          }
+        }
+
+        if (!active) return;
+        setMobileSuggestResults(resultsArr || []);
+      } catch (e) {
+        if (!active) return;
+        setMobileSuggestResults([]);
+      } finally {
+        if (active) setMobileSuggestLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [mobileSearchTerm, searchFilters]);
+
+
+  // Mobile search handler (enhanced like LandingPage)
+  const handleMobileSearch = (searchText = mobileSearchTerm) => {
+    if (!searchText?.trim()) return;
+    
+    // Check if there's a category suggestion for this search term
+    const categorySuggestion = getCategorySuggestion(searchText);
+    
+    // Detect Atlas ID pattern (e.g., ATL0JZTVA8O)
+    const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+    const filters = { ...searchFilters };
+    
+    if (atlasIdPattern.test(searchText.trim())) {
+      filters.atlasId = searchText.trim().toUpperCase();
+      executeEnhancedSearch(searchText.trim(), filters);
+    } else if (categorySuggestion) {
+      // If there's a category suggestion, navigate to category page instead of searching
+      navigate(`/category/${categorySuggestion.id}`);
+      return;
+    } else {
+      executeEnhancedSearch(searchText.trim(), filters);
+    }
+    
+    setMobileSearchTerm('');
+    setMobileSuggestResults([]);
+  };
+
+  // Search functions (copied from ProductDetails)
+  const getCategorySuggestion = (searchTerm) => {
+    if (!searchTerm || !rootCategories) return null;
+    
+    const term = searchTerm.toLowerCase().trim();
+    const matchingCategory = rootCategories.find(cat => 
+      cat.name.toLowerCase().includes(term) || term.includes(cat.name.toLowerCase())
+    );
+    
+    return matchingCategory;
+  };
+
+  const executeEnhancedSearch = (searchText, additionalFilters = {}) => {
+    const filters = { ...searchFilters, ...additionalFilters };
+    const params = new URLSearchParams();
+    
+    if (searchText?.trim()) params.set('q', searchText.trim());
+    if (filters.category) params.set('category', filters.category);
+    if (filters.categoryName) params.set('category_name', filters.categoryName);
+    if (filters.includeSubcategories !== undefined) params.set('include_subcategories', filters.includeSubcategories);
+    if (filters.businessType) params.set('business_type', filters.businessType);
+    if (filters.minPrice) params.set('min_price', filters.minPrice);
+    if (filters.maxPrice) params.set('max_price', filters.maxPrice);
+    if (filters.atlasId) params.set('atlas_id', filters.atlasId);
+    
+    // Navigate to dedicated search results page
+    navigate(`/search?${params.toString()}`);
+  };
+
+  // Load root categories for search suggestions
+  useEffect(() => {
+    const loadRootCategories = async () => {
+      try {
+        const data = await getRootCategories();
+        setRootCategories(Array.isArray(data) ? data : (data?.results || []));
+      } catch (error) {
+        console.error('Failed to load categories for search:', error);
+      }
+    };
+    loadRootCategories();
+  }, []);
+
+  // Search suggestions effect (copied from ProductDetails)
+  useEffect(() => {
+    const term = (searchTerm || '').trim();
+    if (term.length < 2) {
+      setSuggestResults([]);
+      setSuggestOpen(false);
+      setSuggestLoading(false);
+      return;
+    }
+    setSuggestLoading(true);
+    let active = true;
+    const handle = setTimeout(async () => {
+      try {
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+        };
+
+        // Try enhanced search first
+        let resultsArr = [];
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for suggestions, falling back to basic search:', err);
+          // Fallback to basic search if enhanced fails
+          try {
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for suggestions:', fallbackErr);
+            resultsArr = [];
+          }
+        }
+
+        if (!active) return;
+        setSuggestResults(resultsArr || []);
+        setSuggestOpen(true);
+      } catch (e) {
+        if (!active) return;
+        setSuggestResults([]);
+        setSuggestOpen(true);
+      } finally {
+        if (active) setSuggestLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [searchTerm, searchFilters.category, searchFilters.categoryName, searchFilters.includeSubcategories]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestOpen && !event.target.closest('.search-container')) {
+        setSuggestOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [suggestOpen]);
+
   const getImageUrl = (product) => {
     return product.primary_image || 
            product.thumb || 
@@ -95,15 +302,104 @@ export default function TopRanking() {
               <p className="text-xl text-orange-100 mb-8">
                 Discover the highest-ranked products from our premium sellers across all categories
               </p>
-              <Link
-                to="/"
-                className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-orange-600 hover:bg-gray-100 transition-colors font-medium"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Home
-              </Link>
+              
+              {/* Mobile Search Bar */}
+              <div className="sm:hidden mt-6 max-w-md mx-auto">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={mobileSearchTerm}
+                    onChange={(e) => setMobileSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleMobileSearch();
+                      }
+                    }}
+                    placeholder="Search products..."
+                    className="w-full px-4 py-3 pr-12 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-gray-900 placeholder-gray-500"
+                  />
+                  <button
+                    onClick={() => handleMobileSearch()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-orange-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </button>
+                  {mobileSearchTerm.trim().length >= 2 && (
+                    <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <div className="px-3 py-2 text-xs text-gray-500">
+                        {mobileSuggestLoading ? 'Searching…' : `Results for "${mobileSearchTerm.trim()}"`}
+                      </div>
+                      <div className="max-h-80 overflow-auto divide-y divide-gray-100">
+                        {/* Category suggestion if search term matches a category */}
+                        {(() => {
+                          const categorySuggestion = getCategorySuggestion(mobileSearchTerm.trim());
+                          if (categorySuggestion) {
+                            return (
+                              <div
+                                className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  navigate(`/category/${categorySuggestion.id}`);
+                                  setMobileSearchTerm('');
+                                  setMobileSuggestResults([]);
+                                }}
+                              >
+                                <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm text-blue-800 font-medium">Browse {categorySuggestion.name} Category</div>
+                                  <div className="text-xs text-blue-600">View all products in this category</div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* Product search results */}
+                        {(!mobileSuggestLoading && (!Array.isArray(mobileSuggestResults) || mobileSuggestResults.length === 0) && !getCategorySuggestion(mobileSearchTerm.trim())) && (
+                          <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
+                        )}
+                        {Array.isArray(mobileSuggestResults) && mobileSuggestResults.map((p) => {
+                          const id = p?.id ?? p?.pk ?? p?.uuid;
+                          const title = (p?.title || p?.name || 'Untitled').toString();
+                          const thumb = getProductThumb(p);
+                          const displayTitle = title.length > 60 ? `${title.slice(0, 57)}…` : title;
+                          return (
+                            <div
+                              key={id || title}
+                              className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                if (id) navigate(`/product/${id}`);
+                                setMobileSearchTerm('');
+                                setMobileSuggestResults([]);
+                              }}
+                            >
+                              <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
+                                {thumb ? (
+                                  <img src={thumb} alt={title} className="w-10 h-10 object-cover" />
+                                ) : (
+                                  <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No img</div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm text-gray-800 truncate">{displayTitle}</div>
+                                <div className="text-xs text-gray-500 truncate">#{id}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -153,12 +449,6 @@ export default function TopRanking() {
             >
               Try Again
             </button>
-            <Link
-              to="/"
-              className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Back to Home
-            </Link>
           </div>
         </div>
       </div>
@@ -175,15 +465,104 @@ export default function TopRanking() {
             <p className="text-xl text-orange-100 mb-8">
               Discover the highest-ranked products from our premium sellers across all categories
             </p>
-            <Link
-              to="/"
-              className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-orange-600 hover:bg-gray-100 transition-colors font-medium"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Home
-            </Link>
+            
+            {/* Mobile Search Bar */}
+            <div className="sm:hidden mt-6 max-w-md mx-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={mobileSearchTerm}
+                  onChange={(e) => setMobileSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleMobileSearch();
+                    }
+                  }}
+                  placeholder="Search products..."
+                  className="w-full px-4 py-3 pr-12 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-gray-900 placeholder-gray-500"
+                />
+                <button
+                  onClick={() => handleMobileSearch()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-orange-600 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+                {mobileSearchTerm.trim().length >= 2 && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="px-3 py-2 text-xs text-gray-500">
+                      {mobileSuggestLoading ? 'Searching…' : `Results for "${mobileSearchTerm.trim()}"`}
+                    </div>
+                    <div className="max-h-80 overflow-auto divide-y divide-gray-100">
+                      {/* Category suggestion if search term matches a category */}
+                      {(() => {
+                        const categorySuggestion = getCategorySuggestion(mobileSearchTerm.trim());
+                        if (categorySuggestion) {
+                          return (
+                            <div
+                              className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                navigate(`/category/${categorySuggestion.id}`);
+                                setMobileSearchTerm('');
+                                setMobileSuggestResults([]);
+                              }}
+                            >
+                              <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm text-blue-800 font-medium">Browse {categorySuggestion.name} Category</div>
+                                <div className="text-xs text-blue-600">View all products in this category</div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      
+                      {/* Product search results */}
+                      {(!mobileSuggestLoading && (!Array.isArray(mobileSuggestResults) || mobileSuggestResults.length === 0) && !getCategorySuggestion(mobileSearchTerm.trim())) && (
+                        <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
+                      )}
+                      {Array.isArray(mobileSuggestResults) && mobileSuggestResults.map((p) => {
+                        const id = p?.id ?? p?.pk ?? p?.uuid;
+                        const title = (p?.title || p?.name || 'Untitled').toString();
+                        const thumb = getProductThumb(p);
+                        const displayTitle = title.length > 60 ? `${title.slice(0, 57)}…` : title;
+                        return (
+                          <div
+                            key={id || title}
+                            className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              if (id) navigate(`/product/${id}`);
+                              setMobileSearchTerm('');
+                              setMobileSuggestResults([]);
+                            }}
+                          >
+                            <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
+                              {thumb ? (
+                                <img src={thumb} alt={title} className="w-10 h-10 object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No img</div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-gray-800 truncate">{displayTitle}</div>
+                              <div className="text-xs text-gray-500 truncate">#{id}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -222,13 +601,6 @@ export default function TopRanking() {
                           `Top ${category.name}`
                         )}
                       </h2>
-                      <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                        category.parent 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {categoryData.totalCount} products
-                      </span>
                     </div>
                     <Link
                       to={`/category/${category.id}`}

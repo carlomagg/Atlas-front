@@ -178,6 +178,12 @@ const LandingPage = () => {
   const [loadingTrees, setLoadingTrees] = useState({}); // { [id]: true }
   const [isMobileCategoriesOpen, setIsMobileCategoriesOpen] = useState(false);
   const [expandedMobile, setExpandedMobile] = useState({}); // { [id]: boolean }
+  const [expandedSubcategories, setExpandedSubcategories] = useState({}); // { [categoryId]: boolean } - for "show more" subcategories
+  const [expandedSubcategoryChildren, setExpandedSubcategoryChildren] = useState({}); // { [subcategoryId]: boolean } - for subcategory children
+  const [sidebarCategoriesVisible, setSidebarCategoriesVisible] = useState(() => {
+    // Default to collapsed on mobile (< 1024px), expanded on desktop
+    return typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+  }); // Control sidebar categories visibility
   const [isMobileAppOpen, setIsMobileAppOpen] = useState(false);
   const [isMobileBusinessTypeOpen, setIsMobileBusinessTypeOpen] = useState(false);
   // Contact Seller modal state (shared with ProductDetails)
@@ -2013,13 +2019,33 @@ const LandingPage = () => {
               <Link to="/dashboard/message-guide?tab=product" className="block py-2 text-gray-700 hover:text-[#027DDB] transition-colors border-b border-gray-100">
                 Source Request
               </Link>
-              <div className="pt-2">
-                <button className="w-full text-left py-2 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center justify-between">
-                  <span>English</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="pt-2 border-b border-gray-100 language-dropdown">
+                <button
+                  className="w-full text-left py-2 text-gray-700 hover:text-[#027DDB] transition-colors flex items-center justify-between"
+                  onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                  aria-expanded={isLanguageDropdownOpen}
+                  aria-controls="mobile-language-options"
+                >
+                  <span>{currentLanguage}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isLanguageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
+                {isLanguageDropdownOpen && (
+                  <div id="mobile-language-options" className="px-2 pb-3 space-y-1">
+                    {languages.map((language) => (
+                      <button
+                        key={language.code}
+                        onClick={() => handleLanguageSelect(language)}
+                        className={`w-full text-left block px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors ${
+                          currentLanguage === language.name ? 'text-[#027DDB] bg-blue-50' : 'text-gray-700'
+                        }`}
+                      >
+                        {language.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2371,8 +2397,11 @@ const LandingPage = () => {
 
       {/* Mobile/Tablet Categories Drawer */}
       {isMobileCategoriesOpen && (
-        <div className="lg:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setIsMobileCategoriesOpen(false)} />
+        <div className="fixed inset-0 z-[60]" style={{display: 'block'}}>
+          <div className="absolute inset-0 bg-black/40" onClick={() => {
+            console.log('Closing mobile categories drawer');
+            setIsMobileCategoriesOpen(false);
+          }} />
           <div className="absolute left-0 top-0 h-full w-[88vw] max-w-sm bg-white shadow-xl overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <h3 className="font-semibold text-gray-800">All Categories</h3>
@@ -2407,10 +2436,23 @@ const LandingPage = () => {
                             </div>
                           )}
                           {!loadingTrees[root.id] && categoryTrees[root.id] && (
-                            <MobileCategoryItem node={categoryTrees[root.id]} depth={0} onSelectCategory={(id) => {
-                              onSelectCategory(id);
+                            <MobileCategoryItem node={categoryTrees[root.id]} depth={0} onSelectCategory={(id, name) => {
+                              onSelectCategory(id, name);
                               setIsMobileCategoriesOpen(false);
+                              setExpandedMobile({});
+                              setExpandedSubcategories({});
+                              setExpandedSubcategoryChildren({});
                             }} />
+                          )}
+                          {!loadingTrees[root.id] && !categoryTrees[root.id] && (
+                            <div className="text-sm text-gray-500 py-2">
+                              <button 
+                                onClick={() => onSelectCategory(root.id, root.name)}
+                                className="text-[#027DDB] hover:text-blue-700"
+                              >
+                                View all {root.name} products →
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -2429,41 +2471,251 @@ const LandingPage = () => {
           {/* Categories Sidebar */}
           <aside className="w-full lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm relative">
-              <h2 className="font-semibold text-xl mb-6 text-gray-800 border-b border-gray-200 pb-3">
-                <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                {t('categories')}
-              </h2>
-              <ul className="space-y-3">
-                {rootCategories.length === 0 ? (
-                  <li className="text-sm text-gray-500">{t('loadingCategories')}</li>
-                ) : (
-                  rootCategories.slice(0, 8).map((c) => (
+              <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-3">
+                <h2 className="font-semibold text-xl text-gray-800">
+                  <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  {t('categories')}
+                </h2>
+                {/* Hamburger button to toggle categories visibility */}
+                <button
+                  onClick={() => {
+                    setSidebarCategoriesVisible(!sidebarCategoriesVisible);
+                    // Also collapse all expanded categories when hiding
+                    if (sidebarCategoriesVisible) {
+                      setExpandedMobile({});
+                      setExpandedSubcategories({});
+                      setExpandedSubcategoryChildren({});
+                    }
+                  }}
+                  className="md:hidden p-2 text-gray-600 hover:text-[#027DDB] hover:bg-blue-50 rounded-md transition-colors"
+                  aria-label={sidebarCategoriesVisible ? "Hide categories" : "Show categories"}
+                >
+                  <svg 
+                    className={`w-5 h-5 transition-transform ${sidebarCategoriesVisible ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              {/* Categories list with visibility control */}
+              <div className={`transition-all duration-300 overflow-hidden ${sidebarCategoriesVisible ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <ul className="space-y-3">
+                  {rootCategories.length === 0 ? (
+                    <li className="text-sm text-gray-500">{t('loadingCategories')}</li>
+                  ) : (
+                    rootCategories.slice(0, 8).map((c) => (
                     <li key={c.id}
                         onMouseEnter={() => { if (typeof window !== 'undefined' && window.innerWidth >= 1024) { openSideMega(); handleSideRootHover(c.id); } }}
                         onMouseLeave={() => { if (typeof window !== 'undefined' && window.innerWidth >= 1024) { delayedCloseSideMega(); } }}
                     >
-                      <button
-                        className="w-full text-left block py-2 px-3 rounded-md text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
-                        style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
-                        onClick={() => {
-                          if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                            setIsMobileCategoriesOpen(true);
-                            setExpandedMobile(prev => ({ ...prev, [c.id]: true }));
-                            ensureTree(c.id);
-                          } else {
-                            // Desktop: go directly to the category listing page
-                            onSelectCategory(c.id);
-                          }
-                        }}
-                      >
-                        {c.name}
-                      </button>
+                      <div>
+                        <button
+                          className="w-full text-left flex items-center justify-between py-2 px-3 rounded-md text-gray-700 hover:text-[#027DDB] hover:bg-blue-50 transition-colors"
+                          style={{fontSize: 'clamp(14px, 1rem + 0.2vw, 18px)'}}
+                          onClick={() => {
+                            const isMobile = window.innerWidth < 1024;
+                            
+                            if (isMobile) {
+                              // Mobile: Toggle collapse/expand in sidebar
+                              setExpandedMobile(prev => {
+                                const newExpanded = { ...prev, [c.id]: !prev[c.id] };
+                                // Load category tree if expanding and not already loaded
+                                if (!categoryTrees[c.id] && newExpanded[c.id]) {
+                                  ensureTree(c.id);
+                                }
+                                return newExpanded;
+                              });
+                            } else {
+                              // Desktop: go directly to the category listing page
+                              onSelectCategory(c.id, c.name);
+                            }
+                          }}
+                        >
+                          <span>{c.name}</span>
+                          {window.innerWidth < 1024 && (
+                            <svg 
+                              className={`w-4 h-4 transition-transform ${expandedMobile[c.id] ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
+                        
+                        {/* Collapsible subcategories for mobile */}
+                        {window.innerWidth < 1024 && expandedMobile[c.id] && (
+                          <div className="ml-4 mt-2 space-y-1">
+                            {loadingTrees[c.id] && (
+                              <div className="space-y-2">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                  <div key={i} className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
+                                ))}
+                              </div>
+                            )}
+                            {!loadingTrees[c.id] && categoryTrees[c.id] && categoryTrees[c.id].children && (
+                              <div className="space-y-1">
+                                {/* Show first 5 subcategories */}
+                                {categoryTrees[c.id].children.slice(0, 5).map((child) => (
+                                  <div key={child.id} className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <button
+                                        onClick={() => {
+                                          onSelectCategory(child.id, child.name);
+                                        }}
+                                        className="flex-1 text-left py-1 px-2 text-sm text-gray-600 hover:text-[#027DDB] hover:bg-blue-25 rounded transition-colors"
+                                      >
+                                        {child.name}
+                                      </button>
+                                      {Array.isArray(child.children) && child.children.length > 0 && (
+                                        <button
+                                          onClick={() => {
+                                            setExpandedSubcategoryChildren(prev => ({
+                                              ...prev,
+                                              [child.id]: !prev[child.id]
+                                            }));
+                                          }}
+                                          className="p-1 text-gray-400 hover:text-[#027DDB] transition-colors"
+                                        >
+                                          <svg 
+                                            className={`w-3 h-3 transition-transform ${expandedSubcategoryChildren[child.id] ? 'rotate-180' : ''}`} 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Subcategory children */}
+                                    {Array.isArray(child.children) && child.children.length > 0 && expandedSubcategoryChildren[child.id] && (
+                                      <div className="ml-4 space-y-1">
+                                        {child.children.map((grandchild) => (
+                                          <button
+                                            key={grandchild.id}
+                                            onClick={() => {
+                                              onSelectCategory(grandchild.id, grandchild.name);
+                                            }}
+                                            className="w-full text-left py-1 px-2 text-xs text-gray-500 hover:text-[#027DDB] hover:bg-blue-25 rounded transition-colors"
+                                          >
+                                            {grandchild.name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                                
+                                {/* Collapsible additional subcategories */}
+                                {categoryTrees[c.id].children.length > 5 && (
+                                  <>
+                                    {expandedSubcategories[c.id] && (
+                                      <div className="space-y-1">
+                                        {categoryTrees[c.id].children.slice(5).map((child) => (
+                                          <div key={child.id} className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                              <button
+                                                onClick={() => {
+                                                  onSelectCategory(child.id, child.name);
+                                                }}
+                                                className="flex-1 text-left py-1 px-2 text-sm text-gray-600 hover:text-[#027DDB] hover:bg-blue-25 rounded transition-colors"
+                                              >
+                                                {child.name}
+                                              </button>
+                                              {Array.isArray(child.children) && child.children.length > 0 && (
+                                                <button
+                                                  onClick={() => {
+                                                    setExpandedSubcategoryChildren(prev => ({
+                                                      ...prev,
+                                                      [child.id]: !prev[child.id]
+                                                    }));
+                                                  }}
+                                                  className="p-1 text-gray-400 hover:text-[#027DDB] transition-colors"
+                                                >
+                                                  <svg 
+                                                    className={`w-3 h-3 transition-transform ${expandedSubcategoryChildren[child.id] ? 'rotate-180' : ''}`} 
+                                                    fill="none" 
+                                                    stroke="currentColor" 
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                                                  </svg>
+                                                </button>
+                                              )}
+                                            </div>
+                                            
+                                            {/* Subcategory children */}
+                                            {Array.isArray(child.children) && child.children.length > 0 && expandedSubcategoryChildren[child.id] && (
+                                              <div className="ml-4 space-y-1">
+                                                {child.children.map((grandchild) => (
+                                                  <button
+                                                    key={grandchild.id}
+                                                    onClick={() => {
+                                                      onSelectCategory(grandchild.id, grandchild.name);
+                                                    }}
+                                                    className="w-full text-left py-1 px-2 text-xs text-gray-500 hover:text-[#027DDB] hover:bg-blue-25 rounded transition-colors"
+                                                  >
+                                                    {grandchild.name}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Show More / Show Less button */}
+                                    <button
+                                      onClick={() => {
+                                        setExpandedSubcategories(prev => ({
+                                          ...prev,
+                                          [c.id]: !prev[c.id]
+                                        }));
+                                      }}
+                                      className="w-full text-left py-1 px-2 text-xs text-gray-500 hover:text-[#027DDB] italic flex items-center gap-1"
+                                    >
+                                      <svg 
+                                        className={`w-3 h-3 transition-transform ${expandedSubcategories[c.id] ? 'rotate-180' : ''}`} 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                                      </svg>
+                                      {expandedSubcategories[c.id] 
+                                        ? 'Show less' 
+                                        : `+${categoryTrees[c.id].children.length - 5} more...`
+                                      }
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {!loadingTrees[c.id] && !categoryTrees[c.id] && (
+                              <button 
+                                onClick={() => onSelectCategory(c.id, c.name)}
+                                className="w-full text-left py-1 px-2 text-sm text-[#027DDB] hover:text-blue-700"
+                              >
+                                View all {c.name} products →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </li>
-                  ))
-                )}
-              </ul>
+                    ))
+                  )}
+                </ul>
+              </div>
               {/* Side hover mega panel */}
               {isSideMegaOpen && (
                 <div
@@ -3260,7 +3512,7 @@ function MobileCategoryItem({ node, depth = 0, onSelectCategory }) {
                 >
                   <button
                     className="text-left flex-1 pr-2 hover:text-[#027DDB]"
-                    onClick={() => onSelectCategory?.(child.id)}
+                    onClick={() => onSelectCategory?.(child.id, child.name)}
                   >
                     {child.name}
                   </button>

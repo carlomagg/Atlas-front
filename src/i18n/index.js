@@ -113,6 +113,7 @@ const resources = {
       "googlePlay": "Google Play",
       
       // Search
+      "searchResults": "Search Results",
       "enterKeywords": "Enter keywords to search Products",
       "loadingCategories": "Loading categories…",
       "allCategories": "All Categories",
@@ -242,6 +243,7 @@ const resources = {
       "googlePlay": "Google Play",
       
       // Search
+      "searchResults": "Suchergebnisse",
       "enterKeywords": "Stichwörter eingeben, um Produkte zu suchen",
       "loadingCategories": "Kategorien werden geladen…",
       "allCategories": "Alle Kategorien",
@@ -371,6 +373,7 @@ const resources = {
       "googlePlay": "Google Play",
       
       // Search
+      "searchResults": "Résultats de recherche",
       "enterKeywords": "Entrez des mots-clés pour rechercher des produits",
       "loadingCategories": "Chargement des catégories…",
       "allCategories": "Toutes les catégories",
@@ -500,6 +503,7 @@ const resources = {
       "googlePlay": "Google Play",
       
       // Search
+      "searchResults": "Resultados de búsqueda",
       "enterKeywords": "Ingresa palabras clave para buscar productos",
       "loadingCategories": "Cargando categorías…",
       "allCategories": "Todas las categorías",
@@ -629,6 +633,7 @@ const resources = {
       "googlePlay": "Google Play",
       
       // Search
+      "searchResults": "Результаты поиска",
       "enterKeywords": "Введите ключевые слова для поиска продуктов",
       "loadingCategories": "Загрузка категорий…",
       "allCategories": "Все категории",

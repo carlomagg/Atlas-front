@@ -83,34 +83,56 @@ const Reports = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 shadow-sm flex-shrink-0">
-        <div className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Support Center</h2>
-          <nav className="space-y-1">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 text-left ${
-                  activeSection === item.id
-                    ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <span className="mr-3 flex-shrink-0">{item.icon}</span>
-                <span className="truncate">{item.name}</span>
-              </button>
-            ))}
-          </nav>
+    <div className="dashboard-content bg-gray-50 min-h-screen">
+      {/* Main Content - appears first on mobile */}
+      <div className="dashboard-main">
+        <div className="w-full">
+          {/* Mobile dropdown for navigation */}
+          <div className="lg:hidden mb-6">
+            <select
+              value={activeSection}
+              onChange={(e) => setActiveSection(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {sidebarItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Content */}
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+            {renderContent()}
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          {renderContent()}
+      {/* Sidebar - appears second on mobile, first on desktop */}
+      <div className="dashboard-sidebar">
+        <div className="hidden lg:block">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm sticky top-4">
+            <div className="p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Support Center</h2>
+              <nav className="space-y-1">
+                {sidebarItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id)}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 text-left ${
+                      activeSection === item.id
+                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span className="mr-3 flex-shrink-0">{item.icon}</span>
+                    <span className="truncate">{item.name}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
         </div>
       </div>
     </div>

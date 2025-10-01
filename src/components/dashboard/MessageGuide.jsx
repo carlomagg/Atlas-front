@@ -70,6 +70,9 @@ const MessageGuide = () => {
   const [availableCategories, setAvailableCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [allCategories, setAllCategories] = useState([]);
+  
+  // Ref for details section to enable auto-scrolling on mobile
+  const detailsRef = useRef(null);
 
   const { user } = useAuth();
   const currentUserId = user?.id || user?.user_id || user?.pk || user?.atlas_id || user?.atlasId || null;
@@ -523,17 +526,39 @@ const MessageGuide = () => {
 
   const openItem = async (it) => {
     setSelected(it);
+    
+    // Auto-scroll to details section on mobile
+    const scrollToDetails = () => {
+      if (detailsRef.current && window.innerWidth < 1024) {
+        setTimeout(() => {
+          detailsRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+          });
+        }, 100); // Small delay to ensure content is rendered
+      }
+    };
+    
     // For messages tab, retrieve full thread if needed
     try {
       if (active === 'inbox' || active === 'sent') {
         const full = await getMessage(it.id);
         setSelected(full);
+        scrollToDetails();
       } else if (active === 'product') {
         // Fetch full product request including nested replies so creators can see all responses
         const full = await getProductRequestWithReplies(it.id);
         setSelected(full);
+        scrollToDetails();
+      } else {
+        // For other tabs (contact, etc.), scroll immediately
+        scrollToDetails();
       }
-    } catch {}
+    } catch {
+      // Even if API call fails, still scroll to show the basic details
+      scrollToDetails();
+    }
   };
 
   const onSendReply = async () => {
@@ -816,7 +841,7 @@ const MessageGuide = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-3 border rounded-lg bg-white min-h-[50vh]">
+        <div ref={detailsRef} className="lg:col-span-3 border rounded-lg bg-white min-h-[50vh]">
           <div className="p-3 border-b bg-gray-50 rounded-t-lg">
             <span className="text-sm font-medium text-gray-700">{active === 'compose' ? 'Compose New Message' : 'Details'}</span>
           </div>
@@ -1209,7 +1234,7 @@ const MessageGuide = () => {
                     </div>
                   )}
                   {active === 'product' && (
-                    <p className="text-xs text-gray-500 mb-2">Replies are private and will appear in your Inbox/Sent. They are not shown inline here.</p>
+                    <p className="text-xs text-gray-500 mb-2">Replies are private and will appear in your Inbox/Sent.</p>
                   )}
                   <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={4} className="w-full border rounded p-3 text-sm resize-y min-h-[100px]" placeholder="Type your message..." />
                   <div className="flex items-center justify-between mt-2">

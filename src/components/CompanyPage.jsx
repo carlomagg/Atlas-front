@@ -62,6 +62,12 @@ export default function CompanyPage() {
   const [sellerGroupsError, setSellerGroupsError] = useState('');
   const [activeSellerGroup, setActiveSellerGroup] = useState(null);
   
+  // Product Groups state (new implementation)
+  const [productGroups, setProductGroups] = useState([]);
+  const [productGroupsLoading, setProductGroupsLoading] = useState(false);
+  const [productGroupsError, setProductGroupsError] = useState('');
+  const [activeProductGroup, setActiveProductGroup] = useState(null);
+  
   // See more toggles for media sections
   const [showMoreSections, setShowMoreSections] = useState({
     aboutUsFiles: false,
@@ -329,16 +335,63 @@ export default function CompanyPage() {
     }
   };
 
+  // Load product groups for the current seller
+  const loadProductGroups = async () => {
+    const currentSellerId = sellerId || profile?.id || profile?.user_id;
+    if (!currentSellerId) {
+      console.log('CompanyPage - No seller ID available for product groups');
+      return;
+    }
+
+    console.log('CompanyPage - Loading product groups for seller:', currentSellerId);
+    setProductGroupsLoading(true);
+    setProductGroupsError('');
+
+    try {
+      // Fetch ONLY this seller's product groups using the unified endpoint
+      const response = await fetch(
+        `/api/products/product-groups/?user_id=${currentSellerId}&status=active&approved_only=true&page_size=20`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load product groups: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const groups = data.results || [];
+      
+      // Filter out groups with no products
+      const groupsWithProducts = groups.filter(group => 
+        group.products && Array.isArray(group.products) && group.products.length > 0
+      );
+      
+      console.log('CompanyPage - Groups with products:', groupsWithProducts);
+      setProductGroups(groupsWithProducts);
+      
+      // Set first group as active
+      if (groupsWithProducts.length > 0 && !activeProductGroup) {
+        setActiveProductGroup(groupsWithProducts[0].id);
+      }
+
+    } catch (error) {
+      console.error('Failed to load product groups:', error);
+      setProductGroupsError(`Failed to load product groups: ${error.message}`);
+    } finally {
+      setProductGroupsLoading(false);
+    }
+  };
+
   // Load data when profile is available
   useEffect(() => {
     const currentSellerId = sellerId || profile?.id || profile?.user_id;
     console.log('CompanyPage - Loading data for seller:', currentSellerId, { sellerId, profile });
     
     if (currentSellerId && !loading) {
-      console.log('CompanyPage - Loading featured products, categories, grouped products, and seller groups');
+      console.log('CompanyPage - Loading featured products, categories, grouped products, seller groups, and product groups');
       loadFeaturedProducts(1);
       loadGroupedProducts();
       loadSellerOwnGroups();
+      loadProductGroups();
 
       // Discover seller categories from their products (no hard-coding)
       (async () => {
@@ -466,13 +519,13 @@ export default function CompanyPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
               </div>
               <div className="px-5 sm:px-6 pb-4">
-                <div className="relative -mt-6 sm:-mt-8 flex items-end gap-4">
+                <div className="relative -mt-3 sm:-mt-8 flex items-end gap-4">
                   <img
                     src={profileImg || '/images/img_image_2.png'}
                     alt="company avatar"
                     className="w-20 h-20 sm:w-24 sm:h-24 rounded-md object-cover border-4 border-white shadow-md"
                   />
-                  <div className="flex-1">
+                  <div className="flex-1 mt-2 sm:mt-0">
                     <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">{companyName}</h1>
                     <div className="mt-1 text-sm sm:text-base text-slate-600">
                       <span className="mr-3">Contact: <span className="font-medium text-slate-800">{contactName || '—'}</span></span>
@@ -1054,6 +1107,129 @@ export default function CompanyPage() {
                 )}
               </div>
             </div>
+
+            {/* Product Groups Section */}
+            {productGroups.length > 0 && (
+              <div className="bg-white rounded-md shadow-sm border border-slate-200">
+                <div className="px-5 py-3 border-b border-slate-200 text-center">
+                  <h2 className="text-2xl md:text-3xl font-bold text-blue-600">Product Collections by {companyName}</h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Explore our organized product collections ({productGroups.length} collections available)
+                  </p>
+                </div>
+                
+                {productGroupsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <div className="text-slate-500">Loading product collections...</div>
+                  </div>
+                ) : productGroupsError ? (
+                  <div className="text-center py-8">
+                    <div className="text-red-500 mb-4">{productGroupsError}</div>
+                    <button 
+                      onClick={loadProductGroups}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Group Tabs */}
+                    <div className="px-5 pt-4">
+                      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+                        {productGroups.map((group) => (
+                          <button
+                            key={group.id}
+                            onClick={() => setActiveProductGroup(group.id)}
+                            className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-all duration-200 ${
+                              activeProductGroup === group.id
+                                ? 'bg-blue-600 text-white shadow-md transform -translate-y-1'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{group.name}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                activeProductGroup === group.id 
+                                  ? 'bg-white bg-opacity-20 text-white' 
+                                  : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                {group.products?.length || 0}
+                              </span>
+                              {group.is_featured && (
+                                <span className="text-xs bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded">
+                                  ★
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Products Display */}
+                    <div className="p-5">
+                      {(() => {
+                        const activeGroup = productGroups.find(g => g.id === activeProductGroup) || productGroups[0];
+                        const products = activeGroup?.products || [];
+                        
+                        if (products.length === 0) {
+                          return (
+                            <div className="text-center py-12">
+                              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                              </div>
+                              <div className="text-slate-500">No products in this collection yet.</div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            {/* Group Header with Description */}
+                            <div className="mb-6">
+                              <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-xl font-semibold text-gray-900">{activeGroup.name}</h3>
+                                <span className="text-sm text-gray-500">
+                                  {products.length} product{products.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              {activeGroup?.description && (
+                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <p className="text-sm text-blue-800">{activeGroup.description}</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Products Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                              {products.map((product) => (
+                                <FeaturedProductCard key={product.id} product={product} />
+                              ))}
+                            </div>
+
+                            {/* Show more products if available */}
+                            {activeGroup.product_count > products.length && (
+                              <div className="mt-6 text-center">
+                                <p className="text-sm text-gray-600 mb-3">
+                                  Showing {products.length} of {activeGroup.product_count} products in this collection
+                                </p>
+                                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors">
+                                  View All {activeGroup.product_count} Products
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Seller Groups with Products Section - HIDDEN */}
             {false && sellerOwnGroups.length > 0 && (

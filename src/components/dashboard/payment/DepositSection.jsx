@@ -176,18 +176,18 @@ const DepositSection = () => {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Quick Select Amount
             </label>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
               {quickAmounts.map((amount) => (
                 <button
                   key={amount}
                   onClick={() => setDepositAmount(amount.toString())}
-                  className={`p-3 rounded-lg border-2 transition-all text-center ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-center ${
                     depositAmount === amount.toString()
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 hover:border-gray-300 text-gray-700'
                   }`}
                 >
-                  <div className="font-semibold">{formatCurrency(amount)}</div>
+                  <div className="font-semibold text-xs sm:text-sm truncate">{formatCurrency(amount)}</div>
                 </button>
               ))}
             </div>
@@ -273,18 +273,18 @@ const DepositSection = () => {
 
         <div className="space-y-3">
           {recentDeposits.slice(0, 10).map((deposit) => (
-            <div key={deposit.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="bg-green-100 rounded-full p-2">
+            <div key={deposit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="bg-green-100 rounded-full p-2 flex-shrink-0">
                   <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
                   </svg>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{deposit.description}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>{new Date(deposit.created_at).toLocaleString()}</span>
-                    <span className={`px-2 py-1 rounded text-xs ${
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-gray-900 truncate">{deposit.description}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mt-1">
+                    <span className="truncate">{new Date(deposit.created_at).toLocaleString()}</span>
+                    <span className={`px-2 py-1 rounded text-xs inline-block w-fit ${
                       deposit.status === 'completed' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-yellow-100 text-yellow-800'
@@ -292,14 +292,14 @@ const DepositSection = () => {
                       {deposit.status}
                     </span>
                     {deposit.paystack_reference && (
-                      <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                      <span className="text-xs bg-gray-200 px-2 py-1 rounded truncate max-w-32">
                         {deposit.paystack_reference}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <p className="font-bold text-lg text-green-600">
                   +{formatCurrency(deposit.amount)}
                 </p>

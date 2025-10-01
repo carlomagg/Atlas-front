@@ -68,6 +68,7 @@ const VerifyBusiness = () => {
   const [form, setForm] = useState({
     // Business
     industry: '',
+    custom_industry: '', // Add custom industry field
     company_legal_name: '',
     company_address: '',
     state: '',
@@ -109,6 +110,17 @@ const VerifyBusiness = () => {
       if (name === 'applicant_state' && value !== prev.applicant_state) {
         return { ...prev, [name]: value };
       }
+      
+      // Handle industry change - show/hide custom industry field
+      if (name === 'industry') {
+        const newForm = { ...prev, [name]: value };
+        // Clear custom_industry if not "Others"
+        if (value !== 'Others') {
+          newForm.custom_industry = '';
+        }
+        return newForm;
+      }
+      
       return { ...prev, [name]: value };
     });
     if (error) setError('');
@@ -208,6 +220,12 @@ const VerifyBusiness = () => {
       }
     }
 
+    // Validate custom_industry if "Others" is selected
+    if (form.industry === 'Others' && (!form.custom_industry || !form.custom_industry.trim())) {
+      setError('Please specify your industry when "Others" is selected');
+      return;
+    }
+
     // Require certificate file upload
     if (!form.certificate_of_incorporation) {
       setError('Please upload Certificate of Incorporation');
@@ -255,13 +273,29 @@ const VerifyBusiness = () => {
 
     setSubmitting(true);
     try {
+      // Debug: Log form data before submission
+      console.log('🔍 Form data before submission:', {
+        industry: form.industry,
+        custom_industry: form.custom_industry,
+        allFormData: form
+      });
+      
       // Provide Cloudinary config override to avoid missing env vars
       const cloud_name = (import.meta && import.meta.env && import.meta.env.VITE_CLOUDINARY_CLOUD_NAME) || 'dpyjezkla';
       const upload_preset = (import.meta && import.meta.env && import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET) || 'carlomagg';
-      await submitBusinessVerification({
+      
+      const submissionPayload = {
         ...form,
         cloudinary: { cloud_name, upload_preset }
+      };
+      
+      console.log('🚀 Final submission payload:', {
+        industry: submissionPayload.industry,
+        custom_industry: submissionPayload.custom_industry,
+        payload: submissionPayload
       });
+      
+      await submitBusinessVerification(submissionPayload);
       setSuccess('Verification application submitted successfully.');
       // Immediately reflect PENDING status in UI headers
       try { updateUser && updateUser({ businessVerificationStatus: 'PENDING' }); } catch {}
@@ -312,6 +346,23 @@ const VerifyBusiness = () => {
                   ))}
                 </select>
               </div>
+              {/* Custom Industry Field - Show when "Others" is selected */}
+              {form.industry === 'Others' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Specify Your Industry *</label>
+                  <input 
+                    type="text" 
+                    name="custom_industry" 
+                    value={form.custom_industry}
+                    onChange={onChange}
+                    placeholder="Enter your specific industry"
+                    maxLength="255"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent"
+                    disabled={isVerified}
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Company Legal Name</label>
                 <input type="text" name="company_legal_name" value={form.company_legal_name} onChange={onChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent" disabled={isVerified} required/>

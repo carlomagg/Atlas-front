@@ -23,7 +23,7 @@ const DashboardLayout = ({ children }) => {
     } else if (path.includes('/payment-platform')) {
       setActiveTab('Payment Platform');
     } else if (path.includes('/reports')) {
-      setActiveTab('Reports');
+      setActiveTab('Contact');
     } else {
       setActiveTab('Dashboard');
     }
@@ -40,54 +40,63 @@ const DashboardLayout = ({ children }) => {
       {/* Top Navigation */}
       <TopNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Main Layout Container */}
-      <div className="relative">
-        <div className="flex">
-          {/* Conditional Sidebar */}
-          {shouldShowSidebar && (
-            <div className="hidden lg:block">
-              <Sidebar
-                isOpen={true}
-                onClose={() => setSidebarOpen(false)}
-                className="fixed top-32 left-0 h-[calc(100vh-8rem)] w-64 bg-white border-r border-gray-200 z-30"
-              />
-            </div>
-          )}
-
-          {/* Main content */}
-          <div className={`flex-1 min-h-[calc(100vh-8rem)] ${shouldShowSidebar ? 'lg:ml-64' : ''}`}>
-            {/* Mobile sidebar overlay */}
-            {shouldShowSidebar && sidebarOpen && (
-              <div className="lg:hidden">
-                <Sidebar
-                  isOpen={sidebarOpen}
-                  onClose={() => setSidebarOpen(false)}
-                  isMobile={true}
-                />
-              </div>
-            )}
-
-            {/* Page content */}
-            <main className="py-6">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                {/* Mobile menu button for sidebar tabs */}
-                {shouldShowSidebar && (
-                  <div className="lg:hidden mb-4">
-                    <button
-                      onClick={() => setSidebarOpen(true)}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                      Menu
-                    </button>
-                  </div>
-                )}
+      {/* Mobile-First Responsive Layout Container */}
+      <div className="dashboard-container">
+        <div className="dashboard-content">
+          {/* Main content - appears first on mobile */}
+          <main className="dashboard-main">
+            <div className="w-full">
+              {/* Mobile menu button for sidebar tabs */}
+              {shouldShowSidebar && (
+                <div className="lg:hidden mb-4">
+                  <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 w-full justify-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Menu
+                  </button>
+                </div>
+              )}
+              
+              {/* Page content */}
+              <div className="w-full">
                 {children}
               </div>
-            </main>
-          </div>
+            </div>
+          </main>
+
+          {/* Sidebar - appears second on mobile, first on desktop */}
+          {shouldShowSidebar && (
+            <aside className="dashboard-sidebar">
+              {/* Desktop sidebar */}
+              <div className="hidden lg:block">
+                <div className="sticky top-4">
+                  <Sidebar
+                    isOpen={true}
+                    onClose={() => setSidebarOpen(false)}
+                    className="bg-white border border-gray-200 rounded-lg shadow-sm"
+                  />
+                </div>
+              </div>
+              
+              {/* Mobile sidebar overlay */}
+              {sidebarOpen && (
+                <div className="lg:hidden fixed inset-0 z-50">
+                  <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+                  <div className="absolute left-0 top-0 h-full w-80 max-w-[90vw]">
+                    <Sidebar
+                      isOpen={sidebarOpen}
+                      onClose={() => setSidebarOpen(false)}
+                      isMobile={true}
+                    />
+                  </div>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
       </div>
     </div>

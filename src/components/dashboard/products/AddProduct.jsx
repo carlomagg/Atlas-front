@@ -6,6 +6,7 @@ import { getMySubsidiaries } from "../../../services/subsidiaryApi";
 import { uploadRichTextImage } from "../../../services/imageUploadApi";
 import NestedCategorySelector from '../../common/NestedCategorySelector';
 import RichTextEditor from '../../common/RichTextEditor';
+import ImageBackgroundEditor from '../../common/ImageBackgroundEditor';
 
 // Rich text editor image upload handler
 const handleRichTextImageUpload = async (file, context = {}) => {
@@ -76,6 +77,9 @@ export default function ProductForm() {
   const [subsidiaries, setSubsidiaries] = useState([]);
   const [subsidiariesLoading, setSubsidiariesLoading] = useState(false);
 
+  // Background editor state
+  const [showBackgroundEditor, setShowBackgroundEditor] = useState(false);
+
   /* generic handlers */
   const handleChange = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
   const toggleArray = (field, value) => {
@@ -137,6 +141,13 @@ export default function ProductForm() {
 
   /* primary image selection */
   const setPrimaryImage = (index) => setForm(prev => ({ ...prev, primaryImageIndex: index }));
+
+  /* background editor handler */
+  const handleBackgroundEditorImage = (processedFile) => {
+    setForm(prev => ({ ...prev, productImages: [...prev.productImages, processedFile] }));
+    setShowBackgroundEditor(false);
+    setUiAlert({ type: 'success', message: 'Background-edited image added successfully!' });
+  };
 
   /* videos */
   const onProductVideos = (files) => {
@@ -486,7 +497,10 @@ export default function ProductForm() {
                     ))}
                   </div>
                   <div className="text-xs text-gray-500">Select one image as <span className="font-medium">Primary</span>.</div>
-                  <button type="button" className="text-xs text-blue-600 hover:text-blue-800" onClick={() => imageInputRef.current?.click()}>+ Add more images</button>
+                  <div className="flex gap-2">
+                    <button type="button" className="text-xs text-blue-600 hover:text-blue-800" onClick={() => imageInputRef.current?.click()}>+ Add more images</button>
+                    <button type="button" className="text-xs text-green-600 hover:text-green-800" onClick={() => setShowBackgroundEditor(true)}>🎨 Remove Background</button>
+                  </div>
                   <input ref={imageInputRef} type="file" accept="image/*" className="hidden" multiple onChange={e => onProductImages(e.target.files)} />
                 </div>
               </div>
@@ -534,6 +548,28 @@ export default function ProductForm() {
                 </div>
               </div>
             </div>
+
+            {/* Background Editor Modal */}
+            {showBackgroundEditor && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-4 border-b flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Background Remover & Editor</h3>
+                    <button 
+                      onClick={() => setShowBackgroundEditor(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <ImageBackgroundEditor 
+                      onImageProcessed={handleBackgroundEditorImage}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Product Brochure */}
             <div>

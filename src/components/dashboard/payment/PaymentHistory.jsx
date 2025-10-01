@@ -288,37 +288,39 @@ const PaymentHistory = () => {
             </div>
           ) : transactions.length > 0 ? (
             transactions.map((transaction) => (
-              <div key={transaction.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`rounded-full p-3 ${getTransactionBgColor(transaction.transaction_type)}`}>
+              <div key={transaction.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className={`rounded-full p-3 flex-shrink-0 ${getTransactionBgColor(transaction.transaction_type)}`}>
                       <span className="text-xl">{getTransactionIcon(transaction.transaction_type)}</span>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{transaction.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                        <span>{new Date(transaction.created_at).toLocaleString()}</span>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          transaction.status === 'completed' 
-                            ? 'bg-green-100 text-green-800' 
-                            : transaction.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {transaction.status}
-                        </span>
-                        <span className="capitalize bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {transaction.transaction_type.replace('_', ' ')}
-                        </span>
-                        {transaction.paystack_reference && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                            Ref: {transaction.paystack_reference}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 truncate">{transaction.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mt-1">
+                        <span className="truncate">{new Date(transaction.created_at).toLocaleString()}</span>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`px-2 py-1 rounded text-xs inline-block ${
+                            transaction.status === 'completed' 
+                              ? 'bg-green-100 text-green-800' 
+                              : transaction.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {transaction.status}
                           </span>
-                        )}
+                          <span className="capitalize bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            {transaction.transaction_type.replace('_', ' ')}
+                          </span>
+                          {transaction.paystack_reference && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded truncate max-w-24">
+                              Ref: {transaction.paystack_reference}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className={`font-bold text-lg ${getTransactionColor(transaction.transaction_type)}`}>
                       {parseFloat(transaction.amount) > 0 ? '+' : ''}
                       {formatCurrency(Math.abs(transaction.amount))}

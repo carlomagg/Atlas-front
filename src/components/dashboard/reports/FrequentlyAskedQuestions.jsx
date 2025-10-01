@@ -4,11 +4,19 @@ import { useNavigate } from 'react-router-dom';
 
 const FrequentlyAskedQuestions = () => {
   const [expandedSections, setExpandedSections] = useState({});
+  const [showAllQuestions, setShowAllQuestions] = useState({});
   const { isAuthenticated, logout, user } = useAuth();
   const navigate = useNavigate();
 
   const toggleSection = (sectionId) => {
     setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const toggleShowAllQuestions = (sectionId) => {
+    setShowAllQuestions(prev => ({
       ...prev,
       [sectionId]: !prev[sectionId]
     }));
@@ -35,21 +43,49 @@ const FrequentlyAskedQuestions = () => {
       questions: [
         {
           question: 'What is Atlas-WD?',
-          answer: 'Atlas-WD is a comprehensive B2B platform that connects global buyers with Chinese suppliers, facilitating international trade and business growth.'
+          answer: 'AtlasWD is a comprehensive B2B and B2C platform that connects buyers and sellers locally and internationally. Beyond products, we also provide access to services, helping businesses and individuals find the right partners to grow. Acting as a trusted bridge, AtlasWD makes trade and service connections simple, reliable, and secure whether across town or across the globe.'
         },
         {
-          question: 'Does Atlas-WD supply any product?',
-          answer: 'No, Atlas-WD is a platform that connects buyers with suppliers. We do not directly supply products but facilitate connections between businesses.'
+          question: 'Can AtlasWD recommend specific products or services?',
+          answer: 'Yes. Our platform uses smart algorithms and expert knowledge to recommend products and services tailored to your needs, whether for local markets or international trade.'
         },
         {
-          question: 'Can Atlas-WD recommend specific products?',
-          answer: 'Yes, our platform uses advanced algorithms and expert knowledge to recommend products that match your specific requirements and business needs.'
+          question: 'Who can use AtlasWD?',
+          answer: 'AtlasWD is designed for individuals, small businesses, and large enterprises anyone who wants to buy, sell, or promote products and services locally or globally.'
+        },
+        {
+          question: 'Does AtlasWD support both products and services?',
+          answer: 'Absolutely. You can discover and trade physical products as well as professional services across multiple industries.'
+        },
+        {
+          question: 'How do I find suppliers or service providers on AtlasWD?',
+          answer: 'You can browse categories, use search and filters, or rely on our recommendation system to connect with verified providers.'
+        },
+        {
+          question: 'How does AtlasWD ensure trust between buyers and sellers?',
+          answer: 'We verify business profiles, encourage transparency, and provide tools to ensure safer and more reliable trade.'
+        },
+        {
+          question: 'Is AtlasWD limited to international trade?',
+          answer: 'No. AtlasWD supports both local and international trade, giving businesses opportunities to expand at home and abroad.'
+        },
+        {
+          question: 'How do I list my products or services on AtlasWD?',
+          answer: 'Create a company profile, upload your product or service details, and instantly showcase your offerings to a global and local audience.'
+        },
+        {
+          question: 'Can consumers (B2C) also buy on AtlasWD?',
+          answer: 'Yes. In addition to business-to-business (B2B) transactions, AtlasWD allows direct sales to consumers worldwide.'
+        },
+        {
+          question: 'What kind of services can be listed on AtlasWD?',
+          answer: 'A wide range of professional and business services can be listed, from logistics and consulting to creative and technical support.'
         }
       ]
     },
     {
       id: 'account-settings',
-      title: 'Account Settings',
+      title: 'Star Buyer',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -110,6 +146,26 @@ const FrequentlyAskedQuestions = () => {
         {
           question: 'How can I get supplier contact info?',
           answer: 'Verified suppliers contact information is available to registered users. Premium members get access to more detailed contact information including phone numbers and direct email addresses.'
+        },
+        {
+          question: 'What should I do if I can\'t find suitable products?',
+          answer: 'You can refine your search, post buying requests, or contact suppliers directly for custom solutions.'
+        },
+        {
+          question: 'How can I contact suppliers or service providers?',
+          answer: 'Click on the supplier\'s profile to view their contact details, send inquiries, or chat directly through the platform.'
+        },
+        {
+          question: 'How can I get more information about suppliers?',
+          answer: 'Each supplier has a detailed profile, including company background, certifications, membership level, and customer reviews.'
+        },
+        {
+          question: 'What are the benefits of membership levels (Gold, Diamond, etc.)?',
+          answer: 'Higher membership levels provide more visibility, credibility, and access to premium tools that help increase buyer trust and exposure.'
+        },
+        {
+          question: 'Can I sell both locally and internationally on AtlasWD?',
+          answer: 'Yes. AtlasWD supports both local trade within your country and international trade across global markets.'
         }
       ]
     },
@@ -210,7 +266,7 @@ const FrequentlyAskedQuestions = () => {
               {expandedSections[section.id] && (
                 <div className="border-t border-gray-200 p-4 bg-gray-50">
                   <div className="space-y-4">
-                    {section.questions.map((qa, index) => (
+                    {(showAllQuestions[section.id] ? section.questions : section.questions.slice(0, 3)).map((qa, index) => (
                       <div key={index} className="border-l-2 border-blue-500 pl-4">
                         <h4 className="font-medium text-gray-900 mb-2">{qa.question}</h4>
                         <p className="text-gray-600 text-sm mb-3">{qa.answer}</p>
@@ -225,8 +281,11 @@ const FrequentlyAskedQuestions = () => {
                       </div>
                     ))}
                     {section.questions.length > 3 && (
-                      <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                        More
+                      <button 
+                        onClick={() => toggleShowAllQuestions(section.id)}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                      >
+                        {showAllQuestions[section.id] ? 'See Less' : 'See More'}
                       </button>
                     )}
                   </div>

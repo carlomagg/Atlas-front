@@ -3,7 +3,7 @@ import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import Logo from './common/Logo';
 import ContactModal from './common/ContactModal';
 import SuccessAlert from './common/SuccessAlert';
-import { retrieveProduct, listReviews, createReview, deleteReview, fetchRelatedProducts, fetchTopRankingProducts, listCategories } from '../services/productApi';
+import { retrieveProduct, listReviews, createReview, deleteReview, fetchRelatedProducts, fetchTopRankingProducts, listCategories, searchProductsEnhanced, searchProducts } from '../services/productApi';
 import { getMediaArray, resolveMediaUrl, collectProductImageUrls } from '../utils/media';
 import { useMediaLightbox } from './common/MediaLightboxProvider.jsx';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { sendMessage } from '../services/messagesApi';
 import { createProductRequest } from '../services/productRequestApi';
 import ProductCard from './ProductCard';
 import CompanyProducts from './CompanyProducts';
+import { getRootCategories } from '../services/categoryApi';
 
 // CSS for rich text content rendering
 const richTextStyles = `
@@ -391,14 +392,14 @@ function BasicInfoTable({ specs = [] }) {
 function TabCard({ tabs, active, onChange, right, children }) {
   return (
     <div className="bg-white rounded-md shadow-sm border border-slate-200">
-      <div className="px-5 pt-2">
+      <div className="px-3 sm:px-5 pt-2">
         <div className="flex items-end justify-between border-b border-slate-200">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 overflow-x-auto">
             {tabs.map((t, idx) => (
               <button
                 key={t}
                 onClick={() => onChange(idx)}
-                className={`-mb-px px-1 pb-3 text-sm md:text-base font-medium transition-colors ${
+                className={`-mb-px px-2 sm:px-3 pb-3 text-xs sm:text-sm md:text-base font-medium transition-colors whitespace-nowrap ${
                   active === idx
                     ? 'text-[#027DDB] border-b-2 border-[#027DDB]'
                     : 'text-slate-600 hover:text-slate-700 border-b-2 border-transparent'
@@ -411,7 +412,7 @@ function TabCard({ tabs, active, onChange, right, children }) {
           {right}
         </div>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-3 sm:p-4 md:p-5">{children}</div>
     </div>
   );
 }
@@ -896,6 +897,21 @@ export default function ProductDetailsNew() {
   const [prCategoryId, setPrCategoryId] = useState('');
   const [prCategoryName, setPrCategoryName] = useState('');
   const [prCategories, setPrCategories] = useState([]);
+
+  // Search state (copied from LandingPage)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestResults, setSuggestResults] = useState([]);
+  const [rootCategories, setRootCategories] = useState([]);
+  const [searchFilters, setSearchFilters] = useState({
+    category: null,
+    categoryName: '',
+    includeSubcategories: true,
+    businessType: '',
+    minPrice: '',
+    maxPrice: '',
+  });
   const [prCatLoading, setPrCatLoading] = useState(false);
   const [prCatError, setPrCatError] = useState('');
   const successRef = useRef(null);
@@ -1026,6 +1042,113 @@ export default function ProductDetailsNew() {
     twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareTitle)}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`,
   }), [pageUrl, shareTitle]);
+
+  // Search functions (copied from LandingPage)
+  const getCategorySuggestion = (searchTerm) => {
+    if (!searchTerm || !rootCategories) return null;
+    
+    const term = searchTerm.toLowerCase().trim();
+    const matchingCategory = rootCategories.find(cat => 
+      cat.name.toLowerCase().includes(term) || term.includes(cat.name.toLowerCase())
+    );
+    
+    return matchingCategory;
+  };
+
+  const executeEnhancedSearch = (searchText, additionalFilters = {}) => {
+    const filters = { ...searchFilters, ...additionalFilters };
+    const params = new URLSearchParams();
+    
+    if (searchText?.trim()) params.set('q', searchText.trim());
+    if (filters.category) params.set('category', filters.category);
+    if (filters.categoryName) params.set('category_name', filters.categoryName);
+    if (filters.includeSubcategories !== undefined) params.set('include_subcategories', filters.includeSubcategories);
+    if (filters.businessType) params.set('business_type', filters.businessType);
+    if (filters.minPrice) params.set('min_price', filters.minPrice);
+    if (filters.maxPrice) params.set('max_price', filters.maxPrice);
+    if (filters.atlasId) params.set('atlas_id', filters.atlasId);
+    
+    // Navigate to dedicated search results page
+    navigate(`/search?${params.toString()}`);
+  };
+
+  // Load root categories for search suggestions
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getRootCategories();
+        setRootCategories(Array.isArray(data) ? data : (data?.results || []));
+      } catch (error) {
+        console.error('Failed to load categories for search:', error);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Search suggestions effect (copied from LandingPage)
+  useEffect(() => {
+    const term = (searchTerm || '').trim();
+    if (term.length < 2) {
+      setSuggestResults([]);
+      setSuggestOpen(false);
+      setSuggestLoading(false);
+      return;
+    }
+    setSuggestLoading(true);
+    let active = true;
+    const handle = setTimeout(async () => {
+      try {
+        // Build search parameters with current filters
+        const searchParams = {
+          q: term,
+          page_size: 5,
+          ...(searchFilters.category && { category: searchFilters.category }),
+          ...(searchFilters.categoryName && { category_name: searchFilters.categoryName }),
+          ...(searchFilters.category || searchFilters.categoryName ? { include_subcategories: searchFilters.includeSubcategories } : {}),
+        };
+
+        // Try enhanced search first
+        let resultsArr = [];
+        try {
+          const data = await searchProductsEnhanced(searchParams);
+          resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.warn('Enhanced search failed for suggestions, falling back to basic search:', err);
+          // Fallback to basic search if enhanced fails
+          try {
+            const data = await searchProducts({ q: term, page_size: 5 });
+            resultsArr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+          } catch (fallbackErr) {
+            console.error('Both enhanced and basic search failed for suggestions:', fallbackErr);
+            resultsArr = [];
+          }
+        }
+
+        if (!active) return;
+        setSuggestResults(resultsArr || []);
+        setSuggestOpen(true);
+      } catch (e) {
+        if (!active) return;
+        setSuggestResults([]);
+        setSuggestOpen(true);
+      } finally {
+        if (active) setSuggestLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(handle); };
+  }, [searchTerm, searchFilters.category, searchFilters.categoryName, searchFilters.includeSubcategories]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestOpen && !event.target.closest('.search-container')) {
+        setSuggestOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [suggestOpen]);
+
   // Derive seller and company info from loaded product (owner of product)
   const sellerInfo = useMemo(() => {
     const s = product?.seller_info || {};
@@ -1206,18 +1329,140 @@ export default function ProductDetailsNew() {
           <div className="flex-shrink-0">
             <Logo height="h-14 md:h-16 lg:h-20" />
           </div>
-          <nav className="flex items-center gap-6 text-base text-slate-600">
-            <Link 
-              to="/" 
-              className="inline-flex items-center gap-2 px-3 py-2 sm:px-4 rounded-md bg-[#027DDB] text-white text-sm sm:text-base font-medium hover:bg-[#0066B8] transition-colors"
+          {/* Search Component */}
+          <div className="relative flex-1 max-w-xs sm:max-w-md search-container ml-4 sm:ml-6">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => { 
+                if (e.key === 'Enter') { 
+                  const searchText = searchTerm.trim();
+                  if (!searchText) return;
+                  
+                  // Check if there's a category suggestion for this search term
+                  const categorySuggestion = getCategorySuggestion(searchText);
+                  
+                  // Detect Atlas ID pattern
+                  const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                  const filters = { ...searchFilters };
+                  
+                  if (atlasIdPattern.test(searchText)) {
+                    filters.atlasId = searchText.toUpperCase();
+                    executeEnhancedSearch(searchText, filters);
+                  } else if (categorySuggestion) {
+                    // If there's a category suggestion, navigate to category page instead of searching
+                    navigate(`/category/${categorySuggestion.id}`);
+                    setSuggestOpen(false);
+                    return;
+                  } else {
+                    executeEnhancedSearch(searchText, filters);
+                  }
+                  setSuggestOpen(false);
+                } 
+              }}
+              placeholder="Enter keyword, Atlas ID (ATL...), or product name..."
+              className="w-full px-3 py-2 sm:px-4 sm:py-2.5 pr-10 sm:pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#027DDB] focus:border-transparent text-sm sm:text-base"
+            />
+            <button
+              onClick={() => {
+                const searchText = searchTerm.trim();
+                if (!searchText) return;
+                
+                // Check if there's a category suggestion for this search term
+                const categorySuggestion = getCategorySuggestion(searchText);
+                
+                // Detect Atlas ID pattern
+                const atlasIdPattern = /^ATL[A-Z0-9]+$/i;
+                const filters = { ...searchFilters };
+                
+                if (atlasIdPattern.test(searchText)) {
+                  filters.atlasId = searchText.toUpperCase();
+                  executeEnhancedSearch(searchText, filters);
+                } else if (categorySuggestion) {
+                  // If there's a category suggestion, navigate to category page instead of searching
+                  navigate(`/category/${categorySuggestion.id}`);
+                  setSuggestOpen(false);
+                  return;
+                } else {
+                  executeEnhancedSearch(searchText, filters);
+                }
+                setSuggestOpen(false);
+              }}
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 bg-[#027DDB] text-white p-1.5 sm:p-2 rounded-md hover:bg-[#0266b3] transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 sm:w-4 sm:h-4">
-                <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
-                <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span className="hidden xs:inline sm:inline">Back to </span>Home
-            </Link>
-          </nav>
+            </button>
+            {searchTerm.trim().length >= 2 && suggestOpen && (
+              <div className="absolute left-0 right-0 sm:right-auto mt-2 sm:w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <div className="px-3 py-2 text-xs text-gray-500">
+                  {suggestLoading ? 'Searching…' : `Results for "${searchTerm.trim()}"`}
+                </div>
+                <div className="max-h-80 overflow-auto divide-y divide-gray-100">
+                  {/* Category suggestion if search term matches a category */}
+                  {(() => {
+                    const categorySuggestion = getCategorySuggestion(searchTerm.trim());
+                    if (categorySuggestion) {
+                      return (
+                        <div
+                          className="flex items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-l-4 border-blue-500 bg-blue-25"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            navigate(`/category/${categorySuggestion.id}`);
+                            setSearchTerm('');
+                            setSuggestOpen(false);
+                          }}
+                        >
+                          <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-blue-100 mr-3 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-blue-700 text-sm">Browse {categorySuggestion.name}</div>
+                            <div className="text-xs text-blue-600">Category • Click to explore</div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Product search results */}
+                  {(!suggestLoading && (!Array.isArray(suggestResults) || suggestResults.length === 0) && !getCategorySuggestion(searchTerm.trim())) && (
+                    <div className="px-4 py-3 text-sm text-gray-500">No products found</div>
+                  )}
+                  {Array.isArray(suggestResults) && suggestResults.map((p) => {
+                    const thumbUrl = p.primary_image || p.thumb || p.image_url || (p.media && p.media[0]?.file) || '/images/img_image_2.png';
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          navigate(`/product/${p.id}`);
+                          setSearchTerm('');
+                          setSuggestOpen(false);
+                        }}
+                      >
+                        <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden bg-gray-100 mr-3">
+                          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 text-sm truncate">{p.title}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {p.seller_info?.company_name || p.company_info?.company_name || 'Product'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="max-w-[1200px] mx-auto px-4 py-6">
@@ -1395,14 +1640,23 @@ export default function ProductDetailsNew() {
                 <div>
                   <h1 className="text-[22px] md:text-[24px] leading-snug font-semibold text-slate-900">{product?.title || 'Product'}</h1>
 
-                  {/* Reference FOB Price panel */}
+                  {/* Seller Info panel */}
                   <div className="mt-2 rounded-md border border-slate-100 bg-[#F7FAFF] p-3">
                     <div className="flex items-center justify-between text-base text-slate-700">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium">Reference FOB Price</span>
+                        <span className="font-medium">
+                          {product?.seller_info?.company_name || 
+                           product?.company_info?.company_name || 
+                           sellerInfo?.companyName || 
+                           'Company Name'}
+                        </span>
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky-100 text-sky-600 text-xs">i</span>
                       </div>
-                      <a className="text-[#027DDB] text-sm hover:underline cursor-pointer">Get Latest Price ›</a>
+                      <span className="text-[#027DDB] text-sm">
+                        ATLAS ID: {product?.seller_info?.atlas_id || 
+                         product?.seller_info?.atlasId || 
+                         'N/A'}
+                      </span>
                     </div>
                     <div className="mt-2 bg-white rounded-md border border-slate-200 px-3 py-2 text-base text-slate-900">
                       {minOrderText}
@@ -1803,22 +2057,22 @@ export default function ProductDetailsNew() {
                         <div className="space-y-8">
                           {/* Company Story Text */}
                           {hasText && (
-                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                              <div className="flex items-start gap-4">
-                                <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-100">
+                              <div className="flex items-start gap-3 sm:gap-4">
+                                <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                   </svg>
                                 </div>
-                                <div className="flex-1 space-y-4">
-                                  <h3 className="text-xl font-semibold text-slate-900">Company Information</h3>
+                                <div className="flex-1 space-y-3 sm:space-y-4">
+                                  <h3 className="text-lg sm:text-xl font-semibold text-slate-900">Company Information</h3>
                                   
                                   {/* Company Name and Business Type */}
                                   {companyName && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed">
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed">
                                         <strong>Company:</strong> {companyName}
-                                        {businessType && <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">{businessType}</span>}
+                                        {businessType && <span className="ml-2 text-xs sm:text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">{businessType}</span>}
                                       </div>
                                     </div>
                                   )}
@@ -1826,8 +2080,8 @@ export default function ProductDetailsNew() {
                                   {/* Website */}
                                   {website && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed">
-                                        <strong>Website:</strong> <a href={website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{website}</a>
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed">
+                                        <strong>Website:</strong> <a href={website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{website}</a>
                                       </div>
                                     </div>
                                   )}
@@ -1835,7 +2089,7 @@ export default function ProductDetailsNew() {
                                   {/* Location */}
                                   {(country || state) && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed">
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed">
                                         <strong>Location:</strong> {[state, country].filter(Boolean).join(', ')}
                                       </div>
                                     </div>
@@ -1844,9 +2098,9 @@ export default function ProductDetailsNew() {
                                   {/* Business Verification Status */}
                                   {sellerInfo?.business_verification_status && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed">
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed">
                                         <strong>Verification Status:</strong> 
-                                        <span className={`ml-2 text-sm px-2 py-1 rounded ${
+                                        <span className={`ml-2 text-xs sm:text-sm px-2 py-1 rounded ${
                                           sellerInfo.business_verification_status === 'VERIFIED' ? 'bg-green-100 text-green-800' : 
                                           sellerInfo.business_verification_status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
                                           'bg-gray-100 text-gray-800'
@@ -1860,7 +2114,7 @@ export default function ProductDetailsNew() {
                                   {/* About Us */}
                                   {company?.about_us && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-wrap">
                                         <strong>About Us:</strong><br />
                                         {company.about_us}
                                       </div>
@@ -1869,21 +2123,21 @@ export default function ProductDetailsNew() {
                                   
                                   {/* Why Choose Us */}
                                   {company?.why_choose_us && (
-                                    <div className="mt-6 p-4 bg-white/60 rounded-lg border border-blue-200">
-                                      <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white/60 rounded-lg border border-blue-200">
+                                      <h4 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 sm:mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         Why Choose Us
                                       </h4>
-                                      <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">{company.why_choose_us}</div>
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-wrap">{company.why_choose_us}</div>
                                     </div>
                                   )}
                                   
                                   {/* Additional Info */}
                                   {company?.additional_info && (
                                     <div className="prose prose-slate max-w-none">
-                                      <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                      <div className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-wrap">
                                         <strong>Additional Information:</strong><br />
                                         {company.additional_info}
                                       </div>
@@ -1908,16 +2162,16 @@ export default function ProductDetailsNew() {
                     if (!hasMedia) return null;
                     
                     return (
-                      <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden -mx-6">
-                        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                          <h3 className="text-lg md:text-xl text-slate-800 font-bold">VISUAL STORY</h3>
+                      <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden -mx-3 sm:-mx-4 md:-mx-6">
+                        <div className="px-3 sm:px-4 md:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                          <h3 className="text-base sm:text-lg md:text-xl text-slate-800 font-bold">VISUAL STORY</h3>
                         </div>
                         <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-0">
                           {(() => {
                             const displayItems = showMoreCompanySections.aboutUsMedia ? aboutUsMedia : aboutUsMedia.slice(0, 6);
                             return (
                               <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-0">
                                   {displayItems.map((media, i) => {
                                     const mediaUrl = media?.url || media?.file || media;
                                     const isVideo = /\/video\//.test(String(mediaUrl)) || /\.(mp4|webm|ogg)(\?|$)/i.test(String(mediaUrl));
@@ -1947,8 +2201,8 @@ export default function ProductDetailsNew() {
                                               </div>
                                             </div>
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent group-hover:from-black/30 transition-colors flex items-center justify-center">
-                                              <div className="w-20 h-20 bg-white/95 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                                <svg className="w-10 h-10 text-slate-700 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                              <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-white/95 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                                <svg className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-slate-700 ml-1" fill="currentColor" viewBox="0 0 24 24">
                                                   <path d="M8 5v14l11-7z"/>
                                                 </svg>
                                               </div>

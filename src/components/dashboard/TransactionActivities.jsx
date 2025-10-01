@@ -875,7 +875,7 @@ const TransactionActivities = () => {
   };
 
   const renderSidebar = () => (
-    <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6">
+    <div className="w-full bg-white border border-gray-200 rounded-lg shadow-sm p-4 lg:p-6 lg:sticky lg:top-4">
       {/* Mobile: Horizontal scrolling navigation */}
       <div className="lg:hidden mb-4">
         <div className="flex space-x-2 overflow-x-auto pb-2">
@@ -1166,47 +1166,62 @@ const TransactionActivities = () => {
           
           <div className="divide-y divide-gray-200">
             {filteredStatements.length > 0 ? filteredStatements.map((statement) => (
-              <div key={statement.id} className="p-6 hover:bg-gray-50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <div key={statement.id} className="p-4 sm:p-6 hover:bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <span className="text-green-600 font-semibold">📊</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-medium text-gray-900">
+                      <h4 className="text-sm font-medium text-gray-900 truncate">
                         {statement.reference_number || 'Statement'}
                       </h4>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-xs text-gray-500">
-                          {statement.atlas_wd_id}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(statement.created_at).toLocaleDateString()}
-                        </span>
-                        <span className="text-xs font-medium text-blue-600">
-                          ₦{parseFloat(statement.total_amount || 0).toLocaleString()}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {statement.transaction_count} transactions
-                        </span>
+                      
+                      {/* Mobile: Stack vertically, Desktop: Horizontal */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                          <span className="bg-gray-100 px-2 py-1 rounded truncate max-w-32">
+                            {statement.atlas_wd_id}
+                          </span>
+                          <span className="whitespace-nowrap">
+                            {new Date(statement.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-medium text-blue-600 whitespace-nowrap">
+                            ₦{parseFloat(statement.total_amount || 0).toLocaleString()}
+                          </span>
+                          <span className="text-gray-500 whitespace-nowrap">
+                            {statement.transaction_count} transactions
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Period: {new Date(statement.start_date).toLocaleDateString()} - {new Date(statement.end_date).toLocaleDateString()}
+                      
+                      <div className="text-xs text-gray-500 mt-2">
+                        <span className="font-medium">Period:</span>{' '}
+                        <span className="whitespace-nowrap">
+                          {new Date(statement.start_date).toLocaleDateString()}
+                        </span>
+                        {' - '}
+                        <span className="whitespace-nowrap">
+                          {new Date(statement.end_date).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleViewStatement(statement.id)}
-                      className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+                      className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 rounded hover:bg-blue-50 transition-colors whitespace-nowrap"
                     >
                       View Details
                     </button>
                     <button
                       onClick={() => handleDeleteStatement(statement.id)}
                       disabled={loading}
-                      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 border border-red-600 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 border border-red-600 rounded hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
                     >
                       Delete
                     </button>
@@ -1245,68 +1260,133 @@ const TransactionActivities = () => {
       </div>
       
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Company Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Product Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Period Covered
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Reference Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                View History
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        {/* Mobile: Card Layout */}
+        <div className="block sm:hidden">
+          <div className="divide-y divide-gray-200">
             {statements.length > 0 ? (
               statements.map((statement, index) => (
-                <tr key={statement.id || index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {statement.company?.company_name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    Statement #{statement.reference_number}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₦{parseFloat(statement.total_amount || 0).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {statement.start_date} to {statement.end_date}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {statement.atlas_wd_id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {statement.reference_number}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button className="text-blue-600 hover:text-blue-800">View</button>
-                  </td>
-                </tr>
+                <div key={statement.id || index} className="p-4 hover:bg-gray-50">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {statement.company?.company_name || 'N/A'}
+                        </h4>
+                        <p className="text-xs text-gray-500 truncate">
+                          Statement #{statement.reference_number}
+                        </p>
+                      </div>
+                      <button className="ml-2 text-blue-600 hover:text-blue-800 text-sm whitespace-nowrap">
+                        View
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-gray-500">Amount:</span>
+                        <p className="font-medium text-gray-900">
+                          ₦{parseFloat(statement.total_amount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">ID:</span>
+                        <p className="font-medium text-gray-900 truncate">
+                          {statement.atlas_wd_id}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-gray-500">Period:</span>
+                        <p className="font-medium text-gray-900">
+                          {statement.start_date} to {statement.end_date}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ))
             ) : (
-              <tr>
-                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                  No statements found. Generate a statement to see data here.
-                </td>
-              </tr>
+              <div className="p-8 text-center text-gray-500">
+                No statements found. Generate a statement to see data here.
+              </div>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        {/* Desktop: Table Layout */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Company Name
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Product Name
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Amount
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Period Covered
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID Number
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Reference Number
+                </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  View History
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {statements.length > 0 ? (
+                statements.map((statement, index) => (
+                  <tr key={statement.id || index} className="hover:bg-gray-50">
+                    <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-32 truncate">
+                        {statement.company?.company_name || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-32 truncate">
+                        Statement #{statement.reference_number}
+                      </div>
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ₦{parseFloat(statement.total_amount || 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-40 truncate">
+                        {statement.start_date} to {statement.end_date}
+                      </div>
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-24 truncate">
+                        {statement.atlas_wd_id}
+                      </div>
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-32 truncate">
+                        {statement.reference_number}
+                      </div>
+                    </td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
+                      <button className="text-blue-600 hover:text-blue-800">View</button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                    No statements found. Generate a statement to see data here.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
         
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
           <div className="flex justify-between items-center">
@@ -2214,9 +2294,13 @@ const TransactionActivities = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
-      {renderSidebar()}
-      {renderMainContent()}
+    <div className="dashboard-content bg-gray-50 min-h-screen">
+      <div className="dashboard-main">
+        {renderMainContent()}
+      </div>
+      <div className="dashboard-sidebar">
+        {renderSidebar()}
+      </div>
       
       {/* Rejection Modal */}
       {showRejectModal && (

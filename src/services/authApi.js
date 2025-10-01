@@ -122,6 +122,16 @@ export const submitBusinessVerification = async (payload) => {
 
   // Business details
   if (payload.industry) body.industry = payload.industry;
+  if (payload.custom_industry) body.custom_industry = payload.custom_industry;
+  
+  // Debug: Log industry fields specifically
+  console.log('🔍 API Processing Industry Fields:', {
+    'payload.industry': payload.industry,
+    'payload.custom_industry': payload.custom_industry,
+    'body.industry': body.industry,
+    'body.custom_industry': body.custom_industry
+  });
+  
   if (payload.company_legal_name) body.company_legal_name = payload.company_legal_name;
   if (payload.company_address) body.company_address = payload.company_address;
   if (payload.state) body.state = payload.state;
@@ -186,6 +196,13 @@ export const submitBusinessVerification = async (payload) => {
     );
     body.owners = owners;
   }
+
+  // Debug: Log final body being sent to backend
+  console.log('🚀 Final API body being sent to backend:', {
+    industry: body.industry,
+    custom_industry: body.custom_industry,
+    fullBody: body
+  });
 
   // POST JSON to backend
   return apiRequest('/auth/business-verification/apply/', {

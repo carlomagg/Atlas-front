@@ -5,6 +5,7 @@ import { uploadRichTextImage } from '../../../services/imageUploadApi';
 import { getProductThumb } from '../../../utils/media';
 import RichTextEditor from '../../common/RichTextEditor';
 import SubsidiaryProductManagement from './SubsidiaryProductManagement';
+import ImageBackgroundEditor from '../../common/ImageBackgroundEditor';
 
 // Rich text editor image upload handler for edit modal
 const handleEditRichTextImageUpload = async (file, context = {}) => {
@@ -75,6 +76,35 @@ const ManageProducts = () => {
     title: '',
     is_primary: false,
   });
+
+  // Background editor state
+  const [showBackgroundEditor, setShowBackgroundEditor] = useState(false);
+  const [backgroundEditorProductId, setBackgroundEditorProductId] = useState(null);
+
+  // Background editor handler
+  const handleBackgroundEditorImage = async (processedFile) => {
+    if (!backgroundEditorProductId) return;
+    
+    try {
+      await uploadMedia(backgroundEditorProductId, { 
+        file: processedFile, 
+        media_type: 'image', 
+        title: processedFile.name || 'Background-edited image', 
+        is_primary: false 
+      });
+      setUiAlert({ type: 'success', message: 'Background-edited image uploaded successfully!' });
+      await openMediaModal(backgroundEditorProductId);
+      setShowBackgroundEditor(false);
+      setBackgroundEditorProductId(null);
+    } catch (err) {
+      setUiAlert({ type: 'error', message: err?.message || 'Failed to upload background-edited image' });
+    }
+  };
+
+  const openBackgroundEditor = (productId) => {
+    setBackgroundEditorProductId(productId);
+    setShowBackgroundEditor(true);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -457,8 +487,8 @@ const ManageProducts = () => {
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      <div className="p-6">
+    <div className="w-full">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
         <h1 className="text-2xl font-semibold text-gray-800 mb-6">Manage Product</h1>
         {/* Global Inline Alert */}
         {uiAlert.type && (
@@ -541,7 +571,7 @@ const ManageProducts = () => {
             </div>
 
             {/* Products Table */}
-        <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto">
           {loading && (<div className="p-4 text-sm text-gray-500">Loading products…</div>)}
           {!!error && (<div className="p-4 text-sm text-red-600">{error}</div>)}
           <table className="min-w-full">
@@ -1254,6 +1284,12 @@ const ManageProducts = () => {
                           </svg>
                           Upload Video
                         </button>
+                        <button 
+                          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2" 
+                          onClick={() => openBackgroundEditor(mediaModal.productId)}
+                        >
+                          🎨 Remove Background
+                        </button>
                       </div>
                     </div>
 
@@ -1703,6 +1739,31 @@ const ManageProducts = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Background Editor Modal */}
+        {showBackgroundEditor && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Background Remover & Editor</h3>
+                <button 
+                  onClick={() => {
+                    setShowBackgroundEditor(false);
+                    setBackgroundEditorProductId(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-6">
+                <ImageBackgroundEditor 
+                  onImageProcessed={handleBackgroundEditorImage}
+                />
               </div>
             </div>
           </div>

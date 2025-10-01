@@ -374,18 +374,18 @@ const WithdrawalSection = () => {
         <div className="space-y-3">
           {withdrawalHistory.length > 0 ? (
             withdrawalHistory.map((withdrawal) => (
-              <div key={withdrawal.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="bg-red-100 rounded-full p-2">
+              <div key={withdrawal.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="bg-red-100 rounded-full p-2 flex-shrink-0">
                     <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                     </svg>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{withdrawal.description}</p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>{new Date(withdrawal.created_at).toLocaleString()}</span>
-                      <span className={`px-2 py-1 rounded text-xs ${
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">{withdrawal.description}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-500 mt-1">
+                      <span className="truncate">{new Date(withdrawal.created_at).toLocaleString()}</span>
+                      <span className={`px-2 py-1 rounded text-xs inline-block w-fit ${
                         withdrawal.status === 'completed' 
                           ? 'bg-green-100 text-green-800' 
                           : withdrawal.status === 'pending'
@@ -397,7 +397,7 @@ const WithdrawalSection = () => {
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex-shrink-0">
                   <p className="font-bold text-lg text-red-600">
                     -{formatCurrency(withdrawal.amount)}
                   </p>

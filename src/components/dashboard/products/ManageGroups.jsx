@@ -272,8 +272,8 @@ const ManageGroups = () => {
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="p-6">
+    <div className="w-full">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Manage Product Groups</h1>
@@ -337,34 +337,124 @@ const ManageGroups = () => {
               </button>
             </div>
           ) : (
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-4 font-semibold text-gray-700">Group Name</th>
-                  <th className="text-left p-4 font-semibold text-gray-700">Description</th>
-                  <th className="text-left p-4 font-semibold text-gray-700">Products</th>
-                  <th className="text-left p-4 font-semibold text-gray-700">Order</th>
-                  <th className="text-left p-4 font-semibold text-gray-700">Status</th>
-                  <th className="text-left p-4 font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-4 font-semibold text-gray-700">Group Name</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Description</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Products</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Order</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Status</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {groups.map((group) => (
+                      <tr key={group.id} className="hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">{group.name}</span>
+                            {group.is_featured && (
+                              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600 max-w-xs truncate">
+                          {group.description || 'No description'}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+                              {group.products?.length || group.product_count || 0} products
+                            </span>
+                            {(group.products?.length > 0 || group.product_count > 0) && (
+                              <button
+                                onClick={() => openProductModal(group)}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                                title="View products"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 text-gray-600">{group.display_order || 0}</td>
+                        <td className="p-4">
+                          <span className={`text-sm px-2 py-1 rounded-full ${
+                            group.is_active 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {group.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openProductModal(group)}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              title="Manage Products"
+                            >
+                              Products
+                            </button>
+                            <button
+                              onClick={() => openEditModal(group)}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(group)}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4 p-4">
                 {groups.map((group) => (
-                  <tr key={group.id} className="hover:bg-gray-50">
-                    <td className="p-4">
+                  <div key={group.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    {/* Group Name and Featured Badge */}
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{group.name}</span>
+                        <h3 className="font-medium text-gray-900">{group.name}</h3>
                         {group.is_featured && (
                           <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
                             Featured
                           </span>
                         )}
                       </div>
-                    </td>
-                    <td className="p-4 text-gray-600 max-w-xs truncate">
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        group.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {group.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-gray-600 text-sm mb-3">
                       {group.description || 'No description'}
-                    </td>
-                    <td className="p-4">
+                    </p>
+
+                    {/* Products and Order Info */}
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
                           {group.products?.length || group.product_count || 0} products
@@ -382,44 +472,35 @@ const ManageGroups = () => {
                           </button>
                         )}
                       </div>
-                    </td>
-                    <td className="p-4 text-gray-600">{group.display_order || 0}</td>
-                    <td className="p-4">
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        group.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {group.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openProductModal(group)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          title="Manage Products"
-                        >
-                          Products
-                        </button>
-                        <button
-                          onClick={() => openEditModal(group)}
-                          className="text-green-600 hover:text-green-800 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(group)}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      <span className="text-gray-600 text-sm">Order: {group.display_order || 0}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-200">
+                      <button
+                        onClick={() => openProductModal(group)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors"
+                        title="Manage Products"
+                      >
+                        Products
+                      </button>
+                      <button
+                        onClick={() => openEditModal(group)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => openDeleteModal(group)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-3 rounded-md transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
 

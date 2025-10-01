@@ -12,6 +12,11 @@ const GlobalFooter = () => {
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState('');
   const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  
+  // Collapse states for mobile sections
+  const [featuresVisible, setFeaturesVisible] = useState(false);
+  const [supportVisible, setSupportVisible] = useState(false);
+  const [socialMediaVisible, setSocialMediaVisible] = useState(false);
 
   // Newsletter subscription function
   const subscribeToNewsletter = async (email) => {
@@ -175,11 +180,11 @@ const GlobalFooter = () => {
       {/* Footer */}
       <footer className="bg-gray-100 py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          {/* Mobile: Stack vertically, Tablet: 2 columns, Desktop: 6 columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 sm:gap-8">
+          {/* Mobile: 2 columns, Tablet: 2 columns, Desktop: 4 columns */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             
-            {/* Company Info - Full width on mobile, spans 2 cols on tablet */}
-            <div className="sm:col-span-2 lg:col-span-1">
+            {/* Company Info - Spans 2 cols on mobile, spans 2 cols on tablet */}
+            <div className="col-span-2 sm:col-span-2 lg:col-span-1">
               <div className="mb-3">
                 <Logo to="/" height="h-12 md:h-14" />
               </div>
@@ -188,122 +193,144 @@ const GlobalFooter = () => {
             
             {/* Features */}
             <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Features</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>
-                  <button 
-                    onClick={handleSourcingGuideClick}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Features</h3>
+                <button
+                  onClick={() => setFeaturesVisible(!featuresVisible)}
+                  className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  aria-label={featuresVisible ? "Hide features" : "Show features"}
+                >
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${featuresVisible ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
                   >
-                    • Sourcing Guide {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={handleTrendingProductsClick}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Trending products
-                  </button>
-                </li>
-                <li>
-                  <Link 
-                    to="/become-agent"
-                    onClick={handleBecomeAgentClick}
-                    className="hover:text-blue-600 transition-colors cursor-pointer"
-                  >
-                    • Become an Agent {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
-                  </Link>
-                </li>
-              </ul>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className={`transition-all duration-300 overflow-hidden md:block ${
+                featuresVisible ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'
+              }`}>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li>
+                    <button 
+                      onClick={handleSourcingGuideClick}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Sourcing Guide {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={handleTrendingProductsClick}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Trending products
+                    </button>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/become-agent"
+                      onClick={handleBecomeAgentClick}
+                      className="hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      • Become an Agent {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
             
             {/* Support */}
             <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Support</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Support</h3>
+                <button
+                  onClick={() => setSupportVisible(!supportVisible)}
+                  className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  aria-label={supportVisible ? "Hide support" : "Show support"}
+                >
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${supportVisible ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
                   >
-                    • Customer Service
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('faq')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Help Center
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Submit a Dispute
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Report IPR
-                  </button>
-                </li>
-              </ul>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className={`transition-all duration-300 overflow-hidden md:block ${
+                supportVisible ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'
+              }`}>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li>
+                    <button 
+                      onClick={() => handleSupportClick('contact-us')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Customer Service
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleSupportClick('faq')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Help Center
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleSupportClick('contact-us')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Submit a Dispute
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleSupportClick('contact-us')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Report IPR
+                    </button>
+                  </li>
+                </ul>
+              </div>
             </div>
             
-            {/* Company */}
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Company</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Trade Assurance</li>
-                <li>• Business Identity</li>
-                <li>• Logistics Service</li>
-                <li>• Secure Payment</li>
-              </ul>
-            </div>
-            
-            {/* Resources */}
-            <div>
-              <h3 className="font-semibold mb-4 text-gray-800">Resources</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+            {/* Social Media - Full width on mobile and tablet with collapse functionality */}
+            <div className="col-span-2 sm:col-span-2 lg:col-span-1">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Follow Us</h3>
+                {/* Hamburger button for mobile social media collapse */}
+                <button
+                  onClick={() => setSocialMediaVisible(!socialMediaVisible)}
+                  className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  aria-label={socialMediaVisible ? "Hide social media" : "Show social media"}
+                >
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${socialMediaVisible ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
                   >
-                    • Product Monitoring
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Trade Alert
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => handleSupportClick('contact-us')}
-                    className="hover:text-blue-600 transition-colors cursor-pointer text-left"
-                  >
-                    • Production Flow
-                  </button>
-                </li>
-              </ul>
-            </div>
-            
-            {/* Social Media - Full width on mobile and tablet */}
-            <div className="sm:col-span-2 lg:col-span-1">
-              <h3 className="font-semibold mb-4 text-gray-800">Follow Us</h3>
-              <p className="text-sm text-gray-600 mb-4">Connect with us on social media</p>
-              <div className="flex gap-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Social media content with collapse animation */}
+              <div className={`transition-all duration-300 overflow-hidden md:block ${
+                socialMediaVisible ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 md:max-h-none md:opacity-100'
+              }`}>
+                <p className="text-sm text-gray-600 mb-4">Connect with us on social media</p>
+                <div className="flex gap-2">
                 {/* Facebook */}
                 <a
                   href="#"
@@ -355,6 +382,7 @@ const GlobalFooter = () => {
                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                   </svg>
                 </a>
+                </div>
               </div>
             </div>
           </div>

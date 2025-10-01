@@ -296,19 +296,10 @@ const SearchResults = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <Link to="/" className="flex items-center text-[#027DDB] hover:text-[#0266b3] transition-colors mb-1 sm:mb-0">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              {t('backToHome') || 'Back to Home'}
-            </Link>
-            
-            <h1 className="text-lg sm:text-xl font-semibold text-gray-800 text-center sm:text-left">
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-center">
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-800 text-center">
               {t('searchResults') || 'Search Results'}
             </h1>
-            
-            <div className="hidden sm:block w-24"></div> {/* Spacer for centering on larger screens */}
           </div>
         </div>
       </div>
