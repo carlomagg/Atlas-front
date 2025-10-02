@@ -389,7 +389,7 @@ const GlobalFooter = () => {
           
           {/* Copyright */}
           <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-300 text-center text-sm text-gray-600">
-            <p>Copyright ©2022 ATLAS-WD. Trade Alert | All rights reserved.</p>
+            <p>Copyright © 2025 Lux Tech 25, Ltd. All Rights Reserved.</p>
           </div>
         </div>
       </footer>

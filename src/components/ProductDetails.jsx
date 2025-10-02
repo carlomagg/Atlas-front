@@ -44,6 +44,13 @@ const richTextStyles = `
   }
 `;
 
+// Utility function to truncate long company names
+const truncateCompanyName = (name, maxLength = 12) => {
+  if (!name || typeof name !== 'string') return name;
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength) + '......';
+};
+
 function Badge({ children, color = 'bg-blue-50 text-blue-700 border-blue-200' }) {
   return (
     <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-sm font-medium ${color}`}>
@@ -63,8 +70,8 @@ function CompanyInfoCard({ companyLogo, companyName, badges = [], onClick }) {
       <div className="flex items-start gap-3">
         <img src={companyLogo || '/images/img_image_2.png'} alt="company" className="w-10 h-10 rounded object-cover" />
         <div className="flex-1">
-          <div className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-1">
-            {companyName || '—'}
+          <div className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-1" title={companyName || '—'}>
+            {truncateCompanyName(companyName || '—')}
             <span className="text-slate-400">›</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -1452,8 +1459,8 @@ export default function ProductDetailsNew() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-gray-900 text-sm truncate">{p.title}</div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {p.seller_info?.company_name || p.company_info?.company_name || 'Product'}
+                          <div className="text-xs text-gray-500 truncate" title={p.seller_info?.company_name || p.company_info?.company_name || 'Product'}>
+                            {truncateCompanyName(p.seller_info?.company_name || p.company_info?.company_name || 'Product')}
                           </div>
                         </div>
                       </div>
@@ -1644,11 +1651,13 @@ export default function ProductDetailsNew() {
                   <div className="mt-2 rounded-md border border-slate-100 bg-[#F7FAFF] p-3">
                     <div className="flex items-center justify-between text-base text-slate-700">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium">
-                          {product?.seller_info?.company_name || 
-                           product?.company_info?.company_name || 
-                           sellerInfo?.companyName || 
-                           'Company Name'}
+                        <span className="font-medium" title={product?.seller_info?.company_name || product?.company_info?.company_name || sellerInfo?.companyName || 'Company Name'}>
+                          {truncateCompanyName(
+                            product?.seller_info?.company_name || 
+                            product?.company_info?.company_name || 
+                            sellerInfo?.companyName || 
+                            'Company Name'
+                          )}
                         </span>
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky-100 text-sky-600 text-xs">i</span>
                       </div>
@@ -1678,7 +1687,16 @@ export default function ProductDetailsNew() {
                   <div className="mt-5 grid sm:grid-cols-2 gap-3">
                     <div className="rounded-md border border-slate-200 p-3 flex items-center gap-3 bg-white">
                       <img src={product?.seller_info?.profile_image || product?.seller_info?.avatar || product?.company_info?.company_logo_url || product?.company_info?.company_image_url || '/images/img_image_2.png'} alt="company" className="w-10 h-10 rounded object-cover" />
-                      <div className="text-base font-medium text-slate-800">{product?.seller_info?.full_name || product?.seller_info?.name || product?.seller_info?.company_name || product?.company_info?.company_name || (product?.seller_info?.first_name && product?.seller_info?.last_name ? `${product?.seller_info?.first_name} ${product?.seller_info?.last_name}` : '') || '—'}</div>
+                      <div className="text-base font-medium text-slate-800" title={product?.seller_info?.full_name || product?.seller_info?.name || product?.seller_info?.company_name || product?.company_info?.company_name || (product?.seller_info?.first_name && product?.seller_info?.last_name ? `${product?.seller_info?.first_name} ${product?.seller_info?.last_name}` : '') || '—'}>
+                        {truncateCompanyName(
+                          product?.seller_info?.full_name || 
+                          product?.seller_info?.name || 
+                          product?.seller_info?.company_name || 
+                          product?.company_info?.company_name || 
+                          (product?.seller_info?.first_name && product?.seller_info?.last_name ? `${product?.seller_info?.first_name} ${product?.seller_info?.last_name}` : '') || 
+                          '—'
+                        )}
+                      </div>
                     </div>
                     <button 
                       onClick={() => {
@@ -2270,7 +2288,7 @@ export default function ProductDetailsNew() {
                     return (
                       <SectionCard title="Company Details">
                         <div className="space-y-2 text-base">
-                          <KeyInfoRow label="Company Name" value={c.company_name || sellerInfo.company_name || '—'} />
+                          <KeyInfoRow label="Company Name" value={truncateCompanyName(c.company_name || sellerInfo.company_name || '—')} />
                           <KeyInfoRow label="Full Name" value={sellerInfo.full_name || '—'} />
                           <KeyInfoRow label="Business Type" value={sellerInfo.business_type || '—'} />
                           <KeyInfoRow label="Member Status" value={sellerInfo.member_status || '—'} />
