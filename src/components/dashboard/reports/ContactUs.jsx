@@ -119,40 +119,13 @@ const ContactUs = ({ onNavigateToEmailUs, onNavigateToQuickGuide }) => {
           </div>
         </div>
 
-        {/* Popular Questions */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Popular Questions from Other Buyers</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">Can Atlas-WD recommend specific products to me?</span>
-              <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded">HOT</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">What should I do if I can't find suitable products?</span>
-              <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded">HOT</span>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">How can I contact suppliers?</span>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">What's the difference between Gold Member, Diamond Member, Audited Supplier and License Verified?</span>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">How can I get more information about suppliers?</span>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">How can I reduce trade risks during business?</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Alternate Contacts */}
+        {/* Contacts */}
         <div className="border-t border-gray-200 pt-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Alternate Contacts</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Contacts</h3>
           <p className="text-gray-600 text-sm mb-2">You can also contact Atlas-WD directly via phone for immediate assistance.</p>
           <div className="text-sm text-gray-600">
-            <p className="mb-1"><strong>No 18 Leek Lagos</strong></p>
-            <p className="mb-1">Post Code:210032, Fax Number:+86(25)6667 0000 (* Please leave your email on the fax. We will contact you via email.)</p>
+            <p className="mb-1"><strong>51/52 Marina Street, Suite 75, 2nd floor, Kings way building, island lagos</strong></p>
+            <p className="mb-1">Phone: +234-806 773 7852</p>
           </div>
         </div>
       </div>

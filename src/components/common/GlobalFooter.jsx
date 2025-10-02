@@ -138,6 +138,17 @@ const GlobalFooter = () => {
     }
   };
 
+  // Handle legal page clicks with authentication validation
+  const handleLegalPageClick = (pageType) => {
+    if (isAuthenticated) {
+      // Redirect to dashboard reports with specific legal section
+      navigate(`/dashboard/reports?section=${pageType}`);
+    } else {
+      // For non-authenticated users, redirect to login page
+      navigate('/?login=true');
+    }
+  };
+
   return (
     <>
       {/* Newsletter Section */}
@@ -239,6 +250,30 @@ const GlobalFooter = () => {
                     >
                       • Become an Agent {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
                     </Link>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleLegalPageClick('disclaimer')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Disclaimer {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleLegalPageClick('terms-of-use')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Terms of Use {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => handleLegalPageClick('privacy-policy')}
+                      className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                    >
+                      • Privacy Policy {!isAuthenticated && <span className="text-xs text-gray-500">(Login Required)</span>}
+                    </button>
                   </li>
                 </ul>
               </div>

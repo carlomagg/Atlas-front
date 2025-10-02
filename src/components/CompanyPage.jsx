@@ -79,6 +79,7 @@ export default function CompanyPage() {
     storageSites: false,
     exhibitions: false,
     subsidiaries: false,
+    addresses: false,
   });
 
   useEffect(() => {
@@ -676,8 +677,8 @@ export default function CompanyPage() {
                         </div>
                       )}
 
-                      {/* Branch Offices */}
-                      {Array.isArray(company.addresses) && company.addresses.filter(a => !a?.is_head_office).length > 0 && (
+                      {/* Branch Offices - Only show when "See More" is clicked */}
+                      {showMoreSections.addresses && Array.isArray(company.addresses) && company.addresses.filter(a => !a?.is_head_office).length > 0 && (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -723,6 +724,18 @@ export default function CompanyPage() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {/* See More/Less Button for Addresses */}
+                      {Array.isArray(company.addresses) && company.addresses.filter(a => !a?.is_head_office).length > 0 && (
+                        <div className="text-center">
+                          <button
+                            className="px-4 py-2 rounded-md border border-slate-300 bg-white text-slate-700 text-sm md:text-base hover:bg-slate-50 transition-colors"
+                            onClick={() => setShowMoreSections(prev => ({ ...prev, addresses: !prev.addresses }))}
+                          >
+                            {showMoreSections.addresses ? 'See less' : `See more (${company.addresses.filter(a => !a?.is_head_office).length} more address${company.addresses.filter(a => !a?.is_head_office).length !== 1 ? 'es' : ''})`}
+                          </button>
                         </div>
                       )}
 
