@@ -783,8 +783,8 @@ export default function ProductDetailsNew() {
     if (val !== null && val !== undefined && String(val).toString().trim() !== '') {
       return `${val}${unit ? ` ${unit}` : ''} (Min. Order)`;
     }
-    // Dummy placeholder; replace with real data later
-    return '100 Meters (Min. Order)';
+    // No valid MOQ available
+    return '';
   }, [product]);
 
   // Preview specific text sections under the title in this order and append a few specification pairs
@@ -1647,30 +1647,30 @@ export default function ProductDetailsNew() {
                 <div>
                   <h1 className="text-[22px] md:text-[24px] leading-snug font-semibold text-slate-900">{product?.title || 'Product'}</h1>
 
-                  {/* Seller Info panel */}
-                  <div className="mt-2 rounded-md border border-slate-100 bg-[#F7FAFF] p-3">
-                    <div className="flex items-center justify-between text-base text-slate-700">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium" title={product?.seller_info?.company_name || product?.company_info?.company_name || sellerInfo?.companyName || 'Company Name'}>
-                          {truncateCompanyName(
-                            product?.seller_info?.company_name || 
-                            product?.company_info?.company_name || 
-                            sellerInfo?.companyName || 
-                            'Company Name'
-                          )}
-                        </span>
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky-100 text-sky-600 text-xs">i</span>
-                      </div>
-                      <span className="text-[#027DDB] text-sm">
+                  {/* Seller Info panel - visually matches MOQ box */}
+                  <div className="mt-2 bg-white rounded-md border border-slate-200 px-3 py-2 text-base text-slate-900">
+                    <div className="flex items-center justify-between">
+                      <span title={product?.seller_info?.company_name || product?.company_info?.company_name || sellerInfo?.companyName || 'Company Name'}>
+                        {truncateCompanyName(
+                          product?.seller_info?.company_name || 
+                          product?.company_info?.company_name || 
+                          sellerInfo?.companyName || 
+                          'Company Name'
+                        )}
+                      </span>
+                      <span>
                         ATLAS ID: {product?.seller_info?.atlas_id || 
-                         product?.seller_info?.atlasId || 
-                         'N/A'}
+                          product?.seller_info?.atlasId || 
+                          'N/A'}
                       </span>
                     </div>
+                  </div>
+
+                  {minOrderText && (
                     <div className="mt-2 bg-white rounded-md border border-slate-200 px-3 py-2 text-base text-slate-900">
                       {minOrderText}
                     </div>
-                  </div>
+                  )}
 
                   {/* Specifications preview (simple label:value list) */}
                   {specPreview && specPreview.length > 0 && (

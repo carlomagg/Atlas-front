@@ -71,7 +71,7 @@ export default function ImageBackgroundEditor({ onImageProcessed, className = ""
       const res = await fetch("https://api.remove.bg/v1.0/removebg", {
         method: "POST",
         headers: {
-          "X-Api-Key": import.meta.env.VITE_REMOVE_BG_API_KEY,
+          "X-Api-Key": "bnfdTWtQ4ZWwf3rDCKHxqcQL",
         },
         body: formData,
       });

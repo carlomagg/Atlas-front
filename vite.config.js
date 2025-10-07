@@ -17,7 +17,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         // Use local backend during development:
-     // target: 'http://127.0.0.1:8000',
+      //target: 'http://127.0.0.1:8000',
         // For production testing via dev server, switch to:
        //  target: 'http://34.239.228.72',
         changeOrigin: true,

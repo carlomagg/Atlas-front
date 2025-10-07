@@ -4,6 +4,8 @@ import DepositSection from './payment/DepositSection';
 import WithdrawalSection from './payment/WithdrawalSection';
 import PaymentHistory from './payment/PaymentHistory';
 import SubscriptionSection from './payment/SubscriptionSection';
+import EnhancedSubscriptionSection from './payment/EnhancedSubscriptionSection';
+import TierBasedSubscriptionSection from './payment/TierBasedSubscriptionSection';
 import DailyBoosterSection from './payment/DailyBoosterSection';
 import ServicesSection from './payment/ServicesSection';
 import ServiceBookingHistory from './payment/ServiceBookingHistory';
@@ -80,7 +82,8 @@ const PaymentPlatform = () => {
       case 'history':
         return <PaymentHistory />;
       case 'subscriptions':
-        return <SubscriptionSection />;
+        // Using tier-based subscription section with proper API integration
+        return <TierBasedSubscriptionSection />;
       case 'booster':
         return <DailyBoosterSection />;
       case 'services':

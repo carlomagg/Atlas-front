@@ -24,11 +24,11 @@ const SubscriptionBadge = ({ subscriptionBadge, subscriptionEndDate, subscriptio
           color: '#6B7280',
           bgColor: '#F3F4F6'
         };
-      case 'silver':
+      case 'diamond':
         return {
-          text: 'Silver',
-          color: '#4B5563',
-          bgColor: '#E5E7EB'
+          text: 'Diamond',
+          color: '#7C3AED',
+          bgColor: '#EDE9FE'
         };
       case 'gold':
         return {
@@ -39,8 +39,8 @@ const SubscriptionBadge = ({ subscriptionBadge, subscriptionEndDate, subscriptio
       case 'platinum':
         return {
           text: 'Platinum',
-          color: '#7C3AED',
-          bgColor: '#EDE9FE'
+          color: '#374151',
+          bgColor: '#F9FAFB'
         };
       default:
         return null;

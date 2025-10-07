@@ -315,16 +315,27 @@ const SubscriptionSection = () => {
 
                   {/* Features */}
                   <div className="space-y-3 mb-6 sm:mb-8">
-                    {pkg.features && Object.entries(pkg.features).map(([key, feature]) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                          <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                    {pkg.features && Object.entries(pkg.features).map(([key, feature]) => {
+                      const value = feature?.value;
+                      const isUnlimited = String(value).toLowerCase() === 'unlimited' || feature?.unlimited === true;
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0 w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                            <span className="text-gray-700 text-sm">{feature.description}</span>
+                          </div>
+                          {value !== undefined && (
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${isUnlimited ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                              {isUnlimited ? 'Unlimited' : value}
+                            </span>
+                          )}
                         </div>
-                        <span className="text-gray-700 text-sm">{feature.description}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Purchase Button */}

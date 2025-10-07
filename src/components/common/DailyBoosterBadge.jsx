@@ -22,17 +22,17 @@ const DailyBoosterBadge = ({ dailyBoosterBadge, boosterEndDate, boosterStatus })
         color: '#6B7280', // gray-500
         backgroundColor: '#F3F4F6', // gray-100
       },
-      silver: {
-        color: '#4B5563', // gray-600
-        backgroundColor: '#E5E7EB', // gray-200
+      diamond: {
+        color: '#7C3AED', // violet-600
+        backgroundColor: '#EDE9FE', // violet-100
       },
       gold: {
         color: '#D97706', // orange-600
         backgroundColor: '#FEF3C7', // yellow-100
       },
       platinum: {
-        color: '#7C3AED', // violet-600
-        backgroundColor: '#EDE9FE', // violet-100
+        color: '#374151', // gray-700
+        backgroundColor: '#F9FAFB', // gray-50
       },
       boosted: {
         color: '#EA580C', // orange-600

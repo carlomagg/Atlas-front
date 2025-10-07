@@ -1,6 +1,5 @@
 // Transaction API Service for Invoices and Statements
 import { API_BASE_URL } from '../utils/apiConfig';
-
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -558,10 +557,14 @@ const walletApi = {
 
 // Subscription API functions
 const subscriptionApi = {
-  // Get available subscription packages
-  getPackages: async () => {
-    console.log('Fetching subscription packages from:', `${API_BASE_URL}/transactions/subscription-packages/`);
-    const response = await fetch(`${API_BASE_URL}/transactions/subscription-packages/`, {
+  // Get available subscription packages - Updated to match backend API
+  getPackages: async (businessType = null) => {
+    const url = businessType 
+      ? `${API_BASE_URL}/transactions/packages/?business_type=${businessType}`
+      : `${API_BASE_URL}/transactions/packages/`;
+    
+    console.log('Fetching subscription packages from:', url);
+    const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -572,20 +575,110 @@ const subscriptionApi = {
     return result;
   },
 
+  // Get packages grouped by business type (matches backend endpoint)
+  getPackagesByBusinessType: async () => {
+    console.log('Fetching packages grouped by business type from:', `${API_BASE_URL}/transactions/packages/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/packages/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    console.log('Packages by business type response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Packages by business type result:', result);
+    return result;
+  },
+
+  // Get packages grouped by tier (matches backend endpoint)
+  getPackagesByTier: async () => {
+    console.log('Fetching packages grouped by tier from:', `${API_BASE_URL}/transactions/packages/by-tier/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/packages/by-tier/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    console.log('Packages by tier response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Packages by tier result:', result);
+    return result;
+  },
+
+  // Get packages for a specific tier
+  getPackagesForTier: async (tier) => {
+    const tierLower = tier.toLowerCase();
+    console.log('Fetching packages for tier:', tierLower);
+    const response = await fetch(`${API_BASE_URL}/transactions/packages/tier/${tierLower}/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    console.log('Tier packages response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Tier packages result:', result);
+    return result;
+  },
+
+  // Get packages with filtering (tier and/or business type)
+  getPackagesFiltered: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.tier) params.append('tier', filters.tier.toLowerCase());
+    if (filters.business_type) params.append('business_type', filters.business_type);
+    
+    const url = `${API_BASE_URL}/transactions/packages/?${params.toString()}`;
+    console.log('Fetching filtered packages from:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    console.log('Filtered packages response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Filtered packages result:', result);
+    return result;
+  },
+
+  // Get package features and limits
+  getPackageFeatures: async (packageId) => {
+    console.log('Fetching package features for package:', packageId);
+    const response = await fetch(`${API_BASE_URL}/transactions/packages/${packageId}/features/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    console.log('Package features response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Package features result:', result);
+    return result;
+  },
+
   // Purchase subscription
   purchaseSubscription: async (packageId, paymentMethod, callbackUrl) => {
-    console.log('Purchasing subscription:', { packageId, paymentMethod });
+    const requestData = {
+      package_id: packageId,
+      payment_method: paymentMethod,
+      callback_url: callbackUrl
+    };
+    
+    console.log('Purchasing subscription with data:', requestData);
+    console.log('API URL:', `${API_BASE_URL}/transactions/payments/purchase_subscription/`);
+    console.log('Headers:', getAuthHeaders());
+    
     const response = await fetch(`${API_BASE_URL}/transactions/payments/purchase_subscription/`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        package_id: packageId,
-        payment_method: paymentMethod,
-        callback_url: callbackUrl
-      }),
+      body: JSON.stringify(requestData),
     });
 
     console.log('Purchase response status:', response.status);
+    console.log('Purchase response headers:', response.headers);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Purchase error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
     const result = await handleResponse(response);
     console.log('Purchase result:', result);
     return result;
@@ -630,6 +723,71 @@ const subscriptionApi = {
     console.log('Renew response status:', response.status);
     const result = await handleResponse(response);
     console.log('Renew result:', result);
+    return result;
+  },
+
+  // Feature enforcement methods
+  checkFeatureLimit: async (featureName, currentUsage = 0) => {
+    console.log('Checking feature limit for:', featureName, 'current usage:', currentUsage);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/check-feature-limit/`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        feature_name: featureName,
+        current_usage: currentUsage
+      }),
+    });
+
+    console.log('Feature limit check response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Feature limit check result:', result);
+    return result;
+  },
+
+  // Get user's current feature usage (matches backend API structure)
+  getFeatureUsage: async () => {
+    console.log('Fetching user feature usage from:', `${API_BASE_URL}/transactions/subscriptions/feature-usage/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/feature-usage/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    console.log('Feature usage response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Feature usage result:', result);
+    
+    // Return the usage data in the expected format
+    return result?.data || result;
+  },
+
+  // Validate feature access
+  validateFeatureAccess: async (featureName) => {
+    console.log('Validating feature access for:', featureName);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/validate-feature/`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        feature_name: featureName
+      }),
+    });
+
+    console.log('Feature validation response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Feature validation result:', result);
+    return result;
+  },
+
+  // Get subscription limits and current usage summary
+  getSubscriptionSummary: async () => {
+    console.log('Fetching subscription summary from:', `${API_BASE_URL}/transactions/subscriptions/summary/`);
+    const response = await fetch(`${API_BASE_URL}/transactions/subscriptions/summary/`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    console.log('Subscription summary response status:', response.status);
+    const result = await handleResponse(response);
+    console.log('Subscription summary result:', result);
     return result;
   },
 };
