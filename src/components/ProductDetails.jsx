@@ -442,15 +442,30 @@ function SidebarTopRanking() {
       // Filter for boosted products first (good for advertising)
       let boostedProducts = products.filter(product => 
         product.is_boosted || 
-        product.daily_booster_badge
+        product.daily_booster_badge ||
+        product.is_featured
       );
       
-      // If no boosted products, fallback to platinum or gold subscribers
+      console.log('🔍 ProductDetails: Initial boosted products found:', boostedProducts.length);
+      
+      // If no boosted products, fallback to subscription package holders
       if (boostedProducts.length === 0) {
+        console.log('🔄 ProductDetails: No boosted products, falling back to subscription packages');
         boostedProducts = products.filter(product => {
           const subscription = (product.subscription_badge || product.package_name || '').toLowerCase();
-          return subscription.includes('platinum') || subscription.includes('gold');
+          const hasSubscription = subscription.includes('platinum') || 
+                                 subscription.includes('gold') || 
+                                 subscription.includes('diamond') || 
+                                 subscription.includes('basic');
+          
+          if (hasSubscription) {
+            console.log('📦 ProductDetails: Found subscription product:', product.title, 'with subscription:', subscription);
+          }
+          
+          return hasSubscription;
         });
+        
+        console.log('📊 ProductDetails: Fallback subscription products found:', boostedProducts.length);
       }
       
       // Remove the limit - show all boosted products with pagination
@@ -497,6 +512,7 @@ function SidebarTopRanking() {
   }
 
   if (!topProducts.length) {
+    console.log('❌ ProductDetails: No products to display in You May Like section');
     return (
       <div className="text-center py-4 text-slate-500 text-sm md:text-base">
         No top ranking products available
