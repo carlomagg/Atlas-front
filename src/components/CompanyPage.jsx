@@ -87,9 +87,33 @@ export default function CompanyPage() {
     (async () => {
       try {
         if (sellerProfile) {
+          // Coming from ProductDetails or another page that already has seller info
           setProfile(sellerProfile);
+        } else if (sellerId) {
+          // Public company page for a specific seller ID (no auth required)
+          // Derive seller/company info from their approved products
+          const resp = await fetchSellerProducts(sellerId, {
+            page: '1',
+            page_size: '1',
+            status: 'APPROVED',
+          });
+
+          const items = Array.isArray(resp) ? resp : (resp?.results || []);
+          const first = items[0];
+
+          const sellerInfo = first?.seller || first?.seller_profile || first?.user || first || null;
+
+          if (!mounted) return;
+
+          if (sellerInfo) {
+            setProfile(sellerInfo);
+          } else {
+            setError('Seller not found');
+          }
         } else {
+          // Fallback: owner view of their own company (requires auth)
           const data = await getUserProfile();
+          if (!mounted) return;
           setProfile(data?.user || data || {});
         }
       } catch (e) {
@@ -100,7 +124,7 @@ export default function CompanyPage() {
       }
     })();
     return () => { mounted = false; };
-  }, [sellerProfile]);
+  }, [sellerProfile, sellerId]);
 
   // Load featured products
   const loadFeaturedProducts = async (page = 1) => {

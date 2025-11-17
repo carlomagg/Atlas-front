@@ -20,8 +20,16 @@ const AuthFlow = ({ onAuthComplete, initialStep = 'login' }) => {
     if (onAuthComplete) {
       onAuthComplete({ type: 'login', data: loginData });
     }
-    // Redirect to landing page after successful login
-    navigate('/');
+    
+    // Check if user was redirected from a protected route (like dashboard)
+    const from = location.state?.from?.pathname;
+    if (from && from !== '/login') {
+      // Redirect back to the dashboard page they were trying to access
+      navigate(from, { replace: true });
+    } else {
+      // Default redirect to landing page for direct login
+      navigate('/');
+    }
   };
 
   const handleForgotPassword = () => {

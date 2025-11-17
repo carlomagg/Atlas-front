@@ -15,9 +15,9 @@ const ProtectedRoute = ({ children, requireAuth = true }) => {
   }
 
   if (requireAuth && !isAuthenticated) {
-    // Redirect to home page with the current location as state
+    // Redirect to login page with the current location as state
     // so we can redirect back after login
-    return <Navigate to="/" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (!requireAuth && isAuthenticated) {

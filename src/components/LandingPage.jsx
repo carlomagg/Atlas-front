@@ -1051,7 +1051,7 @@ const LandingPage = () => {
     setIsMegaOpen(true);
     // Prefetch all root categories for immediate display
     queueMicrotask?.(() => {
-      const PREFETCH_COUNT = 12; // Show up to 12 categories in 4 columns
+      const PREFETCH_COUNT = 30; // Show up to 30 categories in 4 columns
       const ids = (rootCategories || []).slice(0, PREFETCH_COUNT).map(r => r.id);
       ids.forEach((rid) => {
         if (!categoryTrees[rid] && !loadingTrees[rid]) {
@@ -1113,38 +1113,13 @@ const LandingPage = () => {
   const onSelectCategory = useCallback((id, categoryName = '') => {
     if (!id && id !== 0) return;
     try {
-      // If there's an active search term, perform enhanced search with category filter including subcategories
-      if (searchTerm?.trim()) {
-        setSearchFilters(prev => ({
-          ...prev,
-          category: id,
-          categoryName: categoryName,
-          includeSubcategories: true // Always include subcategories for better search results
-        }));
-        executeEnhancedSearch(searchTerm, { 
-          category: id, 
-          categoryName, 
-          includeSubcategories: true 
-        });
-      } else {
-        // No active search, perform category search with subcategories included
-        setSearchFilters(prev => ({
-          ...prev,
-          category: id,
-          categoryName: categoryName,
-          includeSubcategories: true
-        }));
-        executeEnhancedSearch('', { 
-          category: id, 
-          categoryName, 
-          includeSubcategories: true 
-        });
-      }
+      // Navigate to the category page to show products in that category
+      navigate(`/category/${id}`);
     } finally {
       setIsMegaOpen(false);
       setHoveredRootId(null);
     }
-  }, [navigate, searchTerm, executeEnhancedSearch, setSearchFilters]);
+  }, [navigate]);
 
   // Function to sync with AuthContext
   const syncWithAuthContext = () => {
@@ -2246,7 +2221,7 @@ const LandingPage = () => {
                         )}
                         {rootCategories.length > 0 ? (
                           <div className="grid grid-cols-4 gap-6">
-                            {rootCategories.slice(0, 12).map((rootCategory) => {
+                            {rootCategories.slice(0, 30).map((rootCategory) => {
                               const categoryTree = categoryTrees[rootCategory.id];
                               if (categoryTree) {
                                 return (
